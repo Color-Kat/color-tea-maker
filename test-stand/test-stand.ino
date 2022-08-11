@@ -7,13 +7,13 @@
 #define motor_pin_1 2        // Sugar dispenser
 #define motor_pin_2 3        // Sugar dispenser
 #define mixer_relay_pin A1   // Mixer pin
-#define switch_button_pin 12 // Switch button pin
+#define temp_button_pin 12   // Button for change the temperature
 
 /* --- Temperature --- */
-#define tea_temperature 30 // Temperatur of watter for tea in the kettle
+int tea_temperature = 30; // Temperatur of watter for tea in the kettle
 
 /* --- Timers --- */
-int cup_pump_time = 5 * 1000;
+int cup_pump_time = 11 * 1000;
 int sugar_spoon_time = 4 * 1000;
 int mixer_time = 5 * 1000;
 
@@ -50,7 +50,7 @@ class button {
     bool _flag;
 };
 
-button sw_button(switch_button_pin); // Class button, object sw_button
+button temp_button(temp_button_pin);
 
 void setup()
 {
@@ -83,6 +83,12 @@ void loop()
   static uint8_t stage = 0;
   static long timer = millis();
 
+  // 
+  if (temp_button.click()) {
+    tea_temperature += 5;
+    Serial.println(tea_temperature);
+  }
+
   /* --- Temperature --- */
   static int temp = 0;
   ds.requestTemp();
@@ -97,25 +103,18 @@ void loop()
       ds.requestTemp();
       Serial.println(temp);
   }
-
-  /* --- Switch state of making tea --- */
-  if (sw_button.click()) {
-    stage++;
-    if (stage > 4) stage = 0;
-
-    Serial.println(stage);
-  }
-
+  
+   /* --- Switch state of making tea --- */
    switch (stage) {
       // Kettle
       case 0:
         Serial.println("Чайник включён");
-        digitalWrite(kettle_relay_pin, HIGH);
+        digitalWrite(kettle_relay_pin, LOW);
 
         if(temp >= tea_temperature){
           stage++;
           timer = millis();
-          digitalWrite(kettle_relay_pin, LOW);
+          digitalWrite(kettle_relay_pin, HIGH);
         }
         break;
 
