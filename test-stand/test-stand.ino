@@ -1,5 +1,7 @@
 #include <microDS18B20.h> // For thermometer DS18b20
 #include <GyverTM1637.h> // For led display
+#include <EncButton.h>
+
 
 /* --- PINS --- */
 #define kettle_relay_pin 4   // Relay of kettle
@@ -19,43 +21,13 @@ int cup_pump_time = 11 * 1000;
 int sugar_spoon_time = 4 * 1000;
 int mixer_time = 5 * 1000;
 
-// ------------------------------ //
-
-class button {
-  public:
-    button(byte pin) {
-      _pin = pin;
-      pinMode(_pin, INPUT_PULLUP);
-    }
-    bool click() {
-      bool btnState = digitalRead(_pin);
-      if (!btnState && !_flag && millis() - _tmr >= 300) {
-        _flag = true;
-        _tmr = millis();
-        return true;
-      }
-      if (!btnState && _flag && millis() - _tmr >= 300) {
-        _tmr = millis();
-        return true;
-      }
-      if (btnState && _flag) {
-        _flag = false;
-        _tmr = millis();
-      }
-      return false;
-    }
-
-  private:
-    byte _pin;
-    uint32_t _tmr;
-    bool _flag;
-};
-
 // --- Libs --- //
 
 // Init buttons
-button temp_button(temp_button_pin);
-button sugar_button(sugar_button_pin);
+EncButton<EB_TICK, temp_button_pin> temp_button;   
+EncButton<EB_TICK, sugar_button_pin> sugar_button; 
+//button temp_button(temp_button_pin);
+//button sugar_button(sugar_button_pin);
 
 // Connect thermometer DS18b20
 MicroDS18B20<termometr_pin> ds; 
@@ -122,11 +94,14 @@ void loop()
 }
 
 void buttons() {
+    temp_button.tick();
+    sugar_button.tick();
+  
     switch (currentMode) {
         // --- Normal Mode --- //
         case normal: 
             // Go to the setting mode
-            if(temp_button.click() && sugar_button.click()){
+            if(temp_button.hold() && sugar_button.hold()){
                 currentMode = settings;
                 break;
             }
