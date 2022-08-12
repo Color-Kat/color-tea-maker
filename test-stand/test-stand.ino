@@ -2,7 +2,6 @@
 #include <GyverTM1637.h> // For led display
 #include <EncButton.h>
 
-
 /* --- PINS --- */
 #define kettle_relay_pin 4   // Relay of kettle
 #define termometr_pin A5     // Relay of kettle
@@ -10,8 +9,8 @@
 #define motor_pin_1 2        // Sugar dispenser
 #define motor_pin_2 3        // Sugar dispenser
 #define mixer_relay_pin A1   // Mixer pin
-#define display_CLK 12       // CLK pin of led display
-#define display_DIO 11       // CLK pin of led display
+#define display_CLK A3       // CLK pin of led display
+#define display_DIO A4       // CLK pin of led display
 
 #define temp_button_pin 12   // Button for change the temperature
 #define sugar_button_pin 11  // Button for change number of sugar spoons
@@ -64,8 +63,7 @@ void setup()
   
     // Led display
     disp.clear();
-    disp.brightness(7);  // яркость, 0 - 7 (минимум - максимум)
-    disp.clear();
+    disp.brightness(7);  // Brithness, 0 - 7 (min - max)
     disp.displayByte(_t, _e, _a, _empty);
 }
 
@@ -101,9 +99,13 @@ void buttons() {
         // --- Normal Mode --- //
         case normal: 
             // Go to the setting mode
-            if(temp_button.hold() && sugar_button.hold()){
-                currentMode = settings;
-                break;
+
+            if(!blinkDisplay(_S, _t, _O, _P)){
+                disp.displayByte(_H, _i, _empty, _empty);
+                if(temp_button.hold() && sugar_button.hold()){
+                    currentMode = settings;
+                    break;
+                }
             }
         
             // Change temp by button
@@ -111,7 +113,12 @@ void buttons() {
               tea_temperature += 5;
               if(tea_temperature > 100)
                   tea_temperature = 30;
+
+              disp.clear();
+              disp.displayInt(tea_temperature);
+
               Serial.println(tea_temperature);
+              break;
             }
           
             // Change number of sugar spoons by button
@@ -119,7 +126,15 @@ void buttons() {
               sugar_count += 1;
               if(sugar_count > 4) sugar_count = 0;
               Serial.println(sugar_count);
+
+              disp.clear();
+              disp.displayInt(sugar_count);
+              
+              break;
             }
+            
+//            disp.clear();
+//            disp.displayByte(_t, _e, _a, _empty);
                         
             break;
 
@@ -130,8 +145,17 @@ void buttons() {
         // --- Settings Mode --- //
         case settings:
             Serial.println("Settings mode is on");
+
+            if(!blinkDisplay(_S, _e, _t, _empty)){
+                disp.displayByte(_H, _i, _empty, _empty);
+
+                // Go to the normal mode
+                if(temp_button.hold() && sugar_button.hold()){
+                    currentMode = normal;
+                    break;
+                }
+            }
             
-        
             break; 
     }
     
@@ -235,4 +259,15 @@ void getTemperature(){
         ds.requestTemp();
         Serial.println(current_temp);
     }
+}
+
+bool blinkDisplay(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
+  static unsigned long timer = millis();
+  
+  if(millis() - timer < 1000) {
+    disp.displayByte(byte_1, byte_2, byte_3, byte_4);
+    return true;
+  }
+  
+  return false;
 }
