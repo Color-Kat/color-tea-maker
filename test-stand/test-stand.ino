@@ -67,69 +67,99 @@ GyverTM1637 disp(display_CLK, display_DIO);
 
 void setup()
 {
-  Serial.begin(9600);
-
-  // Kettle
-  pinMode(kettle_relay_pin, OUTPUT);
-  digitalWrite(kettle_relay_pin, LOW);
-
-  // Thermometer
-  pinMode(termometr_pin, INPUT);
-
-  // Pump
-  pinMode(hot_pump_pin, OUTPUT);
-  digitalWrite(hot_pump_pin, LOW);
-
-  // Mixer
-  pinMode(mixer_relay_pin, OUTPUT);
-  digitalWrite(mixer_relay_pin, LOW);
-
-  // Sugar dispenser motor
-  pinMode(motor_pin_1, OUTPUT);
-  pinMode(motor_pin_2, OUTPUT);
-  digitalWrite(motor_pin_1, LOW);
-  digitalWrite(motor_pin_2, LOW);
-
-  // Led display
-  disp.clear();
-  disp.brightness(7);  // яркость, 0 - 7 (минимум - максимум)
-  disp.clear();
-  disp.displayByte(_t, _e, _a, _empty);
+    Serial.begin(9600);
+  
+    // Kettle
+    pinMode(kettle_relay_pin, OUTPUT);
+    digitalWrite(kettle_relay_pin, LOW);
+  
+    // Thermometer
+    pinMode(termometr_pin, INPUT);
+  
+    // Pump
+    pinMode(hot_pump_pin, OUTPUT);
+    digitalWrite(hot_pump_pin, LOW);
+  
+    // Mixer
+    pinMode(mixer_relay_pin, OUTPUT);
+    digitalWrite(mixer_relay_pin, LOW);
+  
+    // Sugar dispenser motor
+    pinMode(motor_pin_1, OUTPUT);
+    pinMode(motor_pin_2, OUTPUT);
+    digitalWrite(motor_pin_1, LOW);
+    digitalWrite(motor_pin_2, LOW);
+  
+    // Led display
+    disp.clear();
+    disp.brightness(7);  // яркость, 0 - 7 (минимум - максимум)
+    disp.clear();
+    disp.displayByte(_t, _e, _a, _empty);
 }
 
 int current_temp = 30; // Current temperature
 int tea_temperature = 30; // Desired temperature
 int sugar_count = 0; // Number of spoons of sugar
 
-// Modes of tea machine
+// --- Modes of tea machine --- //
 enum modes {
-  normal, // Tea is not brewing, we can change params
-  brewing, // Tea is brewing
-  settings, // Edit settings mode (change timers for components)
+    normal, // Tea is not brewing, we can change params
+    brewing, // Tea is brewing
+    settings, // Edit settings mode (change timers for components)
 };
-
 modes currentMode = normal;
 
 void loop()
 {
-  // Change temp by button
-  if (temp_button.click()) {
-    tea_temperature += 5;
-    Serial.println(tea_temperature);
-  }
-
-  // Change number of sugar spoons by button
-  if (sugar_button.click()) {
-    sugar_count += 1;
-    if(sugar_count > 4) sugar_count = 0;
-    Serial.println(sugar_count);
-  }
-
-   /* --- Temperature --- */
-   getTemperature();
+     buttons();
   
-   /* --- Stages of making tea --- */
-   teaProcess();
+     /* --- Temperature --- */
+     getTemperature();
+    
+     /* --- Stages of making tea --- */
+     if(currentMode == brewing)
+        teaProcess();
+}
+
+void buttons() {
+    switch (currentMode) {
+        // --- Normal Mode --- //
+        case normal: 
+            // Go to the setting mode
+            if(temp_button.click() && sugar_button.click()){
+                currentMode = settings;
+                break;
+            }
+        
+            // Change temp by button
+            if (temp_button.click()) {
+              tea_temperature += 5;
+              if(tea_temperature > 100)
+                  tea_temperature = 30;
+              Serial.println(tea_temperature);
+            }
+          
+            // Change number of sugar spoons by button
+            if (sugar_button.click()) {
+              sugar_count += 1;
+              if(sugar_count > 4) sugar_count = 0;
+              Serial.println(sugar_count);
+            }
+                        
+            break;
+
+        // --- Brewing Mode --- //
+        case brewing:
+            break;
+            
+        // --- Settings Mode --- //
+        case settings:
+            Serial.println("Settings mode is on");
+            
+        
+            break; 
+    }
+    
 }
 
 /**
@@ -206,6 +236,7 @@ void teaProcess(){
       // Done
       case 4:
         Serial.println("Чай готов!");
+        currentMode = normal;
         break;
 
       default:
