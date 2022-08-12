@@ -36,6 +36,63 @@ GyverTM1637 disp(display_CLK, display_DIO);
 
 // --- Code --- //
 
+class Screen {
+    public:
+        Screen() {
+            _header_timer = millis();
+            _info_timer = millis();
+
+            disp.clear();
+            disp.brightness(7);  // Brithness, 0 - 7 (min - max)
+        }
+
+        void render() {
+            if(millis() - _header_timer < 1000) {
+                disp.displayByte(_header);
+                return;
+            } 
+
+            if(millis() - _info_timer < 2000) {
+                disp.displayByte(_info);
+                return;
+            } 
+            
+            disp.displayByte(_message);
+        }
+
+        void setMessage(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
+            _message[0] = byte_1;
+            _message[1] = byte_2;
+            _message[2] = byte_3;
+            _message[3] = byte_4;
+        }
+
+         void setHeader(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
+            _header_timer = millis();
+            _header[0] = byte_1;
+            _header[1] = byte_2;
+            _header[2] = byte_3;
+            _header[3] = byte_4;
+        }
+
+        void setInfo(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
+            _info_timer = millis();
+            _info[0] = byte_1;
+            _info[1] = byte_2;
+            _info[2] = byte_3;
+            _info[3] = byte_4;
+        }
+
+    private:
+        boolean _header_timer;
+        boolean _info_timer;
+        byte _header[];
+        byte _message[];
+        byte _info[];
+};
+
+Screen screen;
+
 void setup()
 {
     Serial.begin(9600);
@@ -61,15 +118,18 @@ void setup()
     digitalWrite(motor_pin_1, LOW);
     digitalWrite(motor_pin_2, LOW);
   
-    // Led display
-    disp.clear();
-    disp.brightness(7);  // Brithness, 0 - 7 (min - max)
-    disp.displayByte(_t, _e, _a, _empty);
+    screen.setMessage(_t, _e, _a, _empty);
 }
 
 int current_temp = 30; // Current temperature
 int tea_temperature = 30; // Desired temperature
 int sugar_count = 0; // Number of spoons of sugar
+
+// --- Display variables --- //
+byte disp_message[] = {_t, _E, _a, _empty}; 
+boolean disp_busy = true;
+boolean header = true;
+unsigned long blink_timer = millis(); // Timer for display
 
 // --- Modes of tea machine --- //
 enum modes {
@@ -89,8 +149,12 @@ void loop()
      /* --- Stages of making tea --- */
      if(currentMode == brewing)
         teaProcess();
+     
+     screen.render();
 }
 
+unsigned long header_timer = millis();
+unsigned long info_timer = millis();
 void buttons() {
     temp_button.tick();
     sugar_button.tick();
@@ -98,14 +162,14 @@ void buttons() {
     switch (currentMode) {
         // --- Normal Mode --- //
         case normal: 
-            // Go to the setting mode
+            // First show the mode header
+            screen.setHeader(_S, _t, _O, _P);
+            screen.setMessage(_H, _i, _empty, _empty);
 
-            if(!blinkDisplay(_S, _t, _O, _P)){
-                disp.displayByte(_H, _i, _empty, _empty);
-                if(temp_button.hold() && sugar_button.hold()){
-                    currentMode = settings;
-                    break;
-                }
+            // Go to the setting mode
+            if(temp_button.hold() && sugar_button.hold()){
+                currentMode = settings;
+                break;
             }
         
             // Change temp by button
@@ -114,8 +178,7 @@ void buttons() {
               if(tea_temperature > 100)
                   tea_temperature = 30;
 
-              disp.clear();
-              disp.displayInt(tea_temperature);
+              screen.setInfo(_d, _i, _S, _P);
 
               Serial.println(tea_temperature);
               break;
@@ -125,16 +188,12 @@ void buttons() {
             if (sugar_button.click()) {
               sugar_count += 1;
               if(sugar_count > 4) sugar_count = 0;
+              
               Serial.println(sugar_count);
-
-              disp.clear();
-              disp.displayInt(sugar_count);
+              screen.setInfo(_d, _i, _S, _P);
               
               break;
             }
-            
-//            disp.clear();
-//            disp.displayByte(_t, _e, _a, _empty);
                         
             break;
 
@@ -146,19 +205,37 @@ void buttons() {
         case settings:
             Serial.println("Settings mode is on");
 
-            if(!blinkDisplay(_S, _e, _t, _empty)){
-                disp.displayByte(_H, _i, _empty, _empty);
+            screen.setHeader(_S, _e, _t, _empty);
+            screen.setMessage(_H, _i, _S, _empty);
 
-                // Go to the normal mode
-                if(temp_button.hold() && sugar_button.hold()){
-                    currentMode = normal;
-                    break;
-                }
+            // Go to the normal mode
+            if(temp_button.hold() && sugar_button.hold()){
+                header_timer= millis();
+                currentMode = normal;
+                break;
             }
             
             break; 
     }
     
+}
+
+/**
+ * Every second get new value of the temperature
+ */
+void getTemperature(){
+    ds.requestTemp();
+    if(ds.readTemp()) current_temp = ds.getTemp();
+  
+    static unsigned long last_temp_request = 0;
+    if(millis() - last_temp_request > 1000) {
+        last_temp_request = millis();
+        if(ds.readTemp())
+            current_temp = ds.getTemp();
+      
+        ds.requestTemp();
+        Serial.println(current_temp);
+    }
 }
 
 /**
@@ -241,33 +318,4 @@ void teaProcess(){
       default:
         break;
     }
-}
-
-/**
- * Every second get new value of the temperature
- */
-void getTemperature(){
-    ds.requestTemp();
-    if(ds.readTemp()) current_temp = ds.getTemp();
-  
-    static unsigned long last_temp_request = 0;
-    if(millis() - last_temp_request > 1000) {
-        last_temp_request = millis();
-        if(ds.readTemp())
-            current_temp = ds.getTemp();
-      
-        ds.requestTemp();
-        Serial.println(current_temp);
-    }
-}
-
-bool blinkDisplay(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
-  static unsigned long timer = millis();
-  
-  if(millis() - timer < 1000) {
-    disp.displayByte(byte_1, byte_2, byte_3, byte_4);
-    return true;
-  }
-  
-  return false;
 }
