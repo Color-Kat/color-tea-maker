@@ -1,24 +1,25 @@
-#include <microDS18B20.h>
+#include <microDS18B20.h> // For thermometer DS18b20
+#include <GyverTM1637.h> // For led display
 
 /* --- PINS --- */
 #define kettle_relay_pin 4   // Relay of kettle
 #define termometr_pin A5     // Relay of kettle
-#define hot_pump_pin 6       // Hot water
+#define hot_pump_pin 5       // Hot water
 #define motor_pin_1 2        // Sugar dispenser
 #define motor_pin_2 3        // Sugar dispenser
 #define mixer_relay_pin A1   // Mixer pin
-#define temp_button_pin 12   // Button for change the temperature
+#define display_CLK 12       // CLK pin of led display
+#define display_DIO 11       // CLK pin of led display
 
-/* --- Temperature --- */
-int tea_temperature = 30; // Temperatur of watter for tea in the kettle
+#define temp_button_pin 12   // Button for change the temperature
+#define sugar_button_pin 11  // Button for change number of sugar spoons
 
 /* --- Timers --- */
 int cup_pump_time = 11 * 1000;
 int sugar_spoon_time = 4 * 1000;
 int mixer_time = 5 * 1000;
 
-// Connect thermometer DS18b20
-MicroDS18B20<termometr_pin> ds; 
+// ------------------------------ //
 
 class button {
   public:
@@ -50,7 +51,19 @@ class button {
     bool _flag;
 };
 
+// --- Libs --- //
+
+// Init buttons
 button temp_button(temp_button_pin);
+button sugar_button(sugar_button_pin);
+
+// Connect thermometer DS18b20
+MicroDS18B20<termometr_pin> ds; 
+
+// Connect led display
+GyverTM1637 disp(display_CLK, display_DIO);
+
+// --- Code --- //
 
 void setup()
 {
@@ -76,42 +89,67 @@ void setup()
   pinMode(motor_pin_2, OUTPUT);
   digitalWrite(motor_pin_1, LOW);
   digitalWrite(motor_pin_2, LOW);
+
+  // Led display
+  disp.clear();
+  disp.brightness(7);  // яркость, 0 - 7 (минимум - максимум)
+  disp.clear();
+  disp.displayByte(_t, _e, _a, _empty);
 }
+
+int current_temp = 30; // Current temperature
+int tea_temperature = 30; // Desired temperature
+int sugar_count = 0; // Number of spoons of sugar
+
+// Modes of tea machine
+enum modes {
+  normal, // Tea is not brewing, we can change params
+  brewing, // Tea is brewing
+  settings, // Edit settings mode (change timers for components)
+};
+
+modes currentMode = normal;
 
 void loop()
 {
-  static uint8_t stage = 0;
-  static long timer = millis();
-
-  // 
+  // Change temp by button
   if (temp_button.click()) {
     tea_temperature += 5;
     Serial.println(tea_temperature);
   }
 
-  /* --- Temperature --- */
-  static int temp = 0;
-  ds.requestTemp();
-  if(ds.readTemp())temp = ds.getTemp();
-
-  static unsigned long last_temp_request = 0;
-  if(millis() - last_temp_request > 1000) {
-      last_temp_request = millis();
-      if(ds.readTemp())
-          temp = ds.getTemp();
-    
-      ds.requestTemp();
-      Serial.println(temp);
+  // Change number of sugar spoons by button
+  if (sugar_button.click()) {
+    sugar_count += 1;
+    if(sugar_count > 4) sugar_count = 0;
+    Serial.println(sugar_count);
   }
+
+   /* --- Temperature --- */
+   getTemperature();
   
-   /* --- Switch state of making tea --- */
-   switch (stage) {
+   /* --- Stages of making tea --- */
+   teaProcess();
+}
+
+/**
+ * Control the stages of making tea:
+ * - Kettle
+ * - Water pump
+ * - Sugar dispenser
+ * - Mixer
+ */
+void teaProcess(){
+    static uint8_t stage = 0;
+    static long timer = millis();
+    
+    switch (stage) {
       // Kettle
       case 0:
         Serial.println("Чайник включён");
         digitalWrite(kettle_relay_pin, LOW);
 
-        if(temp >= tea_temperature){
+        if(current_temp >= tea_temperature){
           stage++;
           timer = millis();
           digitalWrite(kettle_relay_pin, HIGH);
@@ -172,5 +210,23 @@ void loop()
 
       default:
         break;
+    }
+}
+
+/**
+ * Every second get new value of the temperature
+ */
+void getTemperature(){
+    ds.requestTemp();
+    if(ds.readTemp()) current_temp = ds.getTemp();
+  
+    static unsigned long last_temp_request = 0;
+    if(millis() - last_temp_request > 1000) {
+        last_temp_request = millis();
+        if(ds.readTemp())
+            current_temp = ds.getTemp();
+      
+        ds.requestTemp();
+        Serial.println(current_temp);
     }
 }
