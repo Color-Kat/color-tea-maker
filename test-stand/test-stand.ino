@@ -7,7 +7,7 @@
 
 /* --- PINS --- */
 #define kettle_relay_pin 4   // Relay of kettle
-#define termometr_pin A5     // Relay of kettle
+#define termometr_pin A2     // Relay of kettle
 #define hot_pump_pin 5       // Hot water
 #define motor_pin_1 2        // Sugar dispenser
 #define motor_pin_2 3        // Sugar dispenser
@@ -131,6 +131,7 @@ modes currentMode = normalMode;
 int current_temp = 30; // Current temperature
 int tea_temperature = 30; // Desired temperature
 int sugar_count = 0; // Number of spoons of sugar
+int cups_count = 1; // Number of cups
 
 /* --- Timers --- */
 int cup_pump_time = 11 * 1000;
@@ -212,7 +213,8 @@ void buttons() {
         // --- Normal Mode --- //
         case normalMode: 
             screen.setHeader(_S, _t, _O, _P); // Menu header
-            screen.setMessage(_H, _i, _empty, _empty); // Menu main text
+//            screen.setMessage(_H, _i, _empty, _empty); // Menu main text
+            screen.setMessage(current_temp, _t); // Menu main text
 
             // Go to the setting mode
             if(millis() - menu_delay_timer_1 > 1000 && temp_button.hold() && sugar_button.hold()){
@@ -231,10 +233,6 @@ void buttons() {
                     tea_temperature = 30;
 
                 // Show temp on display
-//                byte d_1 = tea_temperature / 100 > 0 ? screen.toHex(tea_temperature / 100) : _empty;
-//                byte d_2 = screen.toHex(tea_temperature % 100 / 10);
-//                byte d_3 = screen.toHex(tea_temperature % 10);
-
                 screen.setNumber(tea_temperature, _t);
   
                 break;
@@ -246,9 +244,6 @@ void buttons() {
               if(sugar_count > 4) sugar_count = 0;
 
               // Show count on display
-//              byte sugar_count_dig = screen.toHex(sugar_count);
-//              screen.setInfo(_empty, _empty, sugar_count_dig, _c);
-
               screen.setNumber(sugar_count, _c);
               
               break;
@@ -267,9 +262,10 @@ void buttons() {
             screen.setHeader(_S, _e, _t, _empty);
             screen.setMessage(_H, _i, _S, _empty);
 
+            // Add some delay
             if(millis() - menu_delay_timer_2 <= 1000) {
                 water_pump_start_time = millis();
-                break; // Add some delay
+                break; 
             }
 
             // Go to the normal mode
@@ -281,25 +277,33 @@ void buttons() {
             }
 
             
-            if(temp_button.press()) {
-                Serial.println("Press");
-                water_pump_start_time = millis();
+//            function changeWaterPumpTime(water_pump_start_time);
 
+            // Set start time when the button is pressed
+            if(temp_button.press()) {
+                water_pump_start_time = millis();
+          
+                digitalWrite(motor_pin_1, LOW);
+                digitalWrite(motor_pin_2, HIGH);
+          
+                // Show prevous value on display
                 screen.setNumber(settings.cup_pump_time / 1000, _c);
             }
-
+          
+            // Display new value when hold the button
             if(temp_button.hold()) {
-                Serial.println("Hold");
                 int seconds = (millis() - water_pump_start_time) / 1000;
-
+          
                 screen.setNumber(seconds, _c);
             }
-            
+          
+            // Write he new value to EEPROM when the button is released
             if(temp_button.release()) {
                 long water_pump_time = millis() - water_pump_start_time;
+          
+                digitalWrite(motor_pin_1, HIGH);
+                digitalWrite(motor_pin_2, HIGH);
               
-                Serial.println("Reliase");
-                Serial.println(water_pump_time);
                 if(water_pump_start_time > 0 && water_pump_time > 1000){
                     settings.cup_pump_time = water_pump_time;
                     screen.setInfo(_S, _A, _U, _E);
@@ -362,11 +366,10 @@ void teaProcess(){
         
         Serial.println(millis(), timer);
         Serial.println(cup_pump_time);
-        if(millis() - timer > cup_pump_time) {
+        if(millis() - timer > settings.cup_pump_time * cups_count) {
             stage++;
             timer = millis();
             digitalWrite(hot_pump_pin, LOW);
-            Serial.println("Условие");
         }
         
         break;
@@ -375,14 +378,19 @@ void teaProcess(){
       case 2:
         Serial.println("Дозатор сахара включён");
 
+        if(sugar_count == 0) {
+            stage++;
+            timer = millis();
+        }
+
         digitalWrite(motor_pin_1, LOW);
         digitalWrite(motor_pin_2, HIGH);
 
-        if(millis() - timer > sugar_spoon_time) {
+        if(millis() - timer > settings.sugar_spoon_time * sugar_count) {
           stage++;
           timer = millis();
-          digitalWrite(motor_pin_1, LOW);
-          digitalWrite(motor_pin_2, LOW);
+          digitalWrite(motor_pin_1, HIGH);
+          digitalWrite(motor_pin_2, HIGH);
         }
         
         break;
@@ -394,9 +402,9 @@ void teaProcess(){
         digitalWrite(mixer_relay_pin, HIGH);
 
         if(millis() - timer > mixer_time) {
-          stage++;
-          timer = millis();
-          digitalWrite(mixer_relay_pin, LOW);
+            stage++;
+            timer = millis();
+            digitalWrite(mixer_relay_pin, LOW);
         }
         
         break;
@@ -404,6 +412,7 @@ void teaProcess(){
       // Done
       case 4:
         Serial.println("Чай готов!");
+        screen.setInfo(_empty, _e, _n, _d);
         currentMode = normalMode;
         break;
 
@@ -411,3 +420,38 @@ void teaProcess(){
         break;
     }
 }
+
+//void changeWaterPumpTime(unsigned long timer) {
+//    // Set start time when the button is pressed
+//    if(temp_button.press()) {
+//        timer = millis();
+//  
+//        digitalWrite(motor_pin_1, LOW);
+//        digitalWrite(motor_pin_2, HIGH);
+//  
+//        // Show prevous value on display
+//        screen.setNumber(settings.cup_pump_time / 1000, _c);
+//    }
+//  
+//    // Display new value when hold the button
+//    if(temp_button.hold()) {
+//        int seconds = (millis() - water_pump_start_time) / 1000;
+//  
+//        screen.setNumber(seconds, _c);
+//    }
+//  
+//    // Write he new value to EEPROM when the button is released
+//    if(temp_button.release()) {
+//        long water_pump_time = millis() - water_pump_start_time;
+//  
+//        digitalWrite(motor_pin_1, HIGH);
+//        digitalWrite(motor_pin_2, HIGH);
+//      
+//        if(water_pump_start_time > 0 && water_pump_time > 1000){
+//            settings.cup_pump_time = water_pump_time;
+//            screen.setInfo(_S, _A, _U, _E);
+//        
+//            EEPROM.put(0, settings);
+//        }
+//    }
+//}

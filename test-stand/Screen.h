@@ -20,16 +20,14 @@ public:
     void render()
     {
         // Display header only if header is updated
-        if (_state != _prev_state && millis() - _header_timer < 1500)
-        {
+        if (_state != _prev_state && millis() - _header_timer < 1500){
             _disp->displayByte(_header); // Display header of menu
             return;
         }
         else if (_state != _prev_state)
             _state = _prev_state;
 
-        if (millis() - _info_timer < 2500)
-        {
+        if (millis() - _info_timer < 2500){
             _disp->displayByte(_info); // Display info data
             return;
         }
@@ -38,23 +36,29 @@ public:
     }
 
     // Update current state. Call when header is changed
-    void updateState()
-    {
+    void updateState(){
         _state = !_prev_state;
     }
 
-    // Set new message for meny
-    void setMessage(byte byte_1, byte byte_2, byte byte_3, byte byte_4)
-    {
+    // Set new message for menu
+    void setMessage(byte byte_1, byte byte_2, byte byte_3, byte byte_4) {
         _message[0] = byte_1;
         _message[1] = byte_2;
         _message[2] = byte_3;
         _message[3] = byte_4;
     }
 
+    // Set new message for numbers
+    void setMessage(int number, byte sign) {
+        byte d_1 = number / 100 > 0 ? toHex(number / 100) : _empty; // Display only if it's not 0
+        byte d_2 = (number % 100 / 10 > 0 || number / 100 > 0) ? toHex(number % 100 / 10) : _empty; // Don't display if first number is 0
+        byte d_3 = toHex(number % 10);
+
+        setMessage(d_1, d_2, d_3, sign);
+    }
+
     // Set new header for meny
-    void setHeader(byte byte_1, byte byte_2, byte byte_3, byte byte_4)
-    {
+    void setHeader(byte byte_1, byte byte_2, byte byte_3, byte byte_4) {
         // Update header timer until header is displayed
         if (_state == _prev_state)
             _header_timer = millis();
@@ -65,8 +69,7 @@ public:
         _header[3] = byte_4;
     }
 
-    void setInfo(byte byte_1, byte byte_2, byte byte_3, byte byte_4)
-    {
+    void setInfo(byte byte_1, byte byte_2, byte byte_3, byte byte_4) {
         // Update info timer
         if (_state == _prev_state)
             _info_timer = millis();
