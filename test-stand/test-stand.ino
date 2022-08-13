@@ -35,29 +35,42 @@ MicroDS18B20<termometr_pin> ds;
 GyverTM1637 disp(display_CLK, display_DIO);
 
 // --- Code --- //
-
 class Screen {
     public:
         Screen() {
             _header_timer = millis();
             _info_timer = millis();
 
+            _prev_state = false;
+            _state = false;
+
             disp.clear();
             disp.brightness(7);  // Brithness, 0 - 7 (min - max)
         }
 
         void render() {
-            if(millis() - _header_timer < 1000) {
+            Serial.println("-----------------");
+            Serial.print("_header_timer: ");
+            Serial.println(_header_timer);
+
+            Serial.print("_info_timer: ");
+            Serial.println(_info_timer);
+            
+            if(_state != _prev_state && millis() - _header_timer < 2000) {
                 disp.displayByte(_header);
                 return;
-            } 
-
+            } else if(_state != _prev_state) _state = _prev_state;
+            
             if(millis() - _info_timer < 2000) {
                 disp.displayByte(_info);
                 return;
             } 
-            
+
             disp.displayByte(_message);
+        }
+
+        void updateState(){
+            _state = !_prev_state;
         }
 
         void setMessage(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
@@ -68,7 +81,8 @@ class Screen {
         }
 
          void setHeader(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
-            _header_timer = millis();
+            if(_state == _prev_state) _header_timer = millis();
+            
             _header[0] = byte_1;
             _header[1] = byte_2;
             _header[2] = byte_3;
@@ -76,7 +90,8 @@ class Screen {
         }
 
         void setInfo(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
-            _info_timer = millis();
+            if(_state == _prev_state) _info_timer = millis();
+            
             _info[0] = byte_1;
             _info[1] = byte_2;
             _info[2] = byte_3;
@@ -84,11 +99,13 @@ class Screen {
         }
 
     private:
-        boolean _header_timer;
-        boolean _info_timer;
-        byte _header[];
-        byte _message[];
-        byte _info[];
+        bool _prev_state;
+        bool _state;
+        unsigned long _header_timer;
+        unsigned long _info_timer;
+        byte _message[4];
+        byte _header[4];
+        byte _info[4];
 };
 
 Screen screen;
@@ -125,12 +142,6 @@ int current_temp = 30; // Current temperature
 int tea_temperature = 30; // Desired temperature
 int sugar_count = 0; // Number of spoons of sugar
 
-// --- Display variables --- //
-byte disp_message[] = {_t, _E, _a, _empty}; 
-boolean disp_busy = true;
-boolean header = true;
-unsigned long blink_timer = millis(); // Timer for display
-
 // --- Modes of tea machine --- //
 enum modes {
     normal, // Tea is not brewing, we can change params
@@ -153,9 +164,10 @@ void loop()
      screen.render();
 }
 
-unsigned long header_timer = millis();
-unsigned long info_timer = millis();
 void buttons() {
+    static unsigned long menu_delay_timer_1 = millis();
+    static unsigned long menu_delay_timer_2 = millis();
+  
     temp_button.tick();
     sugar_button.tick();
   
@@ -167,21 +179,23 @@ void buttons() {
             screen.setMessage(_H, _i, _empty, _empty);
 
             // Go to the setting mode
-            if(temp_button.hold() && sugar_button.hold()){
+            if(millis() - menu_delay_timer_1 > 1000 && temp_button.hold() && sugar_button.hold()){
+                menu_delay_timer_2 = millis();
                 currentMode = settings;
+                screen.updateState();
                 break;
             }
         
             // Change temp by button
             if (temp_button.click()) {
-              tea_temperature += 5;
-              if(tea_temperature > 100)
-                  tea_temperature = 30;
-
-              screen.setInfo(_d, _i, _S, _P);
-
-              Serial.println(tea_temperature);
-              break;
+                tea_temperature += 5;
+                if(tea_temperature > 100)
+                    tea_temperature = 30;
+  
+                screen.setInfo(_d, _i, _S, _P);
+  
+                Serial.println(tea_temperature);
+                break;
             }
           
             // Change number of sugar spoons by button
@@ -190,7 +204,7 @@ void buttons() {
               if(sugar_count > 4) sugar_count = 0;
               
               Serial.println(sugar_count);
-              screen.setInfo(_d, _i, _S, _P);
+              screen.setInfo(_t, _empty, _empty, _empty);
               
               break;
             }
@@ -204,20 +218,20 @@ void buttons() {
         // --- Settings Mode --- //
         case settings:
             Serial.println("Settings mode is on");
-
+           
             screen.setHeader(_S, _e, _t, _empty);
             screen.setMessage(_H, _i, _S, _empty);
 
             // Go to the normal mode
-            if(temp_button.hold() && sugar_button.hold()){
-                header_timer= millis();
+            if(millis() - menu_delay_timer_2 > 1000 && temp_button.hold() && sugar_button.hold()){
+                menu_delay_timer_1 = millis();
                 currentMode = normal;
+                screen.updateState();
                 break;
             }
             
             break; 
     }
-    
 }
 
 /**
