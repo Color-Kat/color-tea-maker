@@ -3,6 +3,8 @@
 #include <EncButton.h> // For buttons
 #include <EEPROM.h> // For EEPROM memory to save settings
 
+#include "Screen.h"
+
 /* --- PINS --- */
 #define kettle_relay_pin 4   // Relay of kettle
 #define termometr_pin A5     // Relay of kettle
@@ -16,11 +18,6 @@
 #define temp_button_pin 12   // Button for change the temperature
 #define sugar_button_pin 11  // Button for change number of sugar spoons
 
-/* --- Timers --- */
-int cup_pump_time = 11 * 1000;
-int sugar_spoon_time = 4 * 1000;
-int mixer_time = 5 * 1000;
-
 // --- Libs --- //
 
 // Init buttons
@@ -33,93 +30,118 @@ MicroDS18B20<termometr_pin> ds;
 // Connect led display
 GyverTM1637 disp(display_CLK, display_DIO);
 
-// --- Code --- //
-class Screen {
-    public:
-        Screen() {
-            _header_timer = millis();
-            _info_timer = millis();
 
-            _prev_state = false;
-            _state = false;
+//class Screen {
+//    public:
+//        Screen() {
+//            _header_timer = millis();
+//            _info_timer = millis();
+//
+//            _prev_state = false;
+//            _state = false;
+//
+//            disp.clear();
+//            disp.brightness(7);  // Brithness, 0 - 7 (min - max)
+//            disp.displayByte(_t, _e, _a, _empty);
+//        }
+//
+//        void render() {
+//            // Display header only if header is updated
+//            if(_state != _prev_state && millis() - _header_timer < 1500) {
+//                disp.displayByte(_header); // Display header of menu
+//                return;
+//            } else if(_state != _prev_state) _state = _prev_state;
+//            
+//            if(millis() - _info_timer < 2500) {
+//                disp.displayByte(_info); // Display info data
+//                return;
+//            } 
+//
+//            disp.displayByte(_message); // Display some message in menu main screen
+//        }
+//
+//        // Update current state. Call when header is changed
+//        void updateState(){
+//            _state = !_prev_state;
+//        }
+//
+//        // Set new message for meny
+//        void setMessage(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
+//            _message[0] = byte_1;
+//            _message[1] = byte_2;
+//            _message[2] = byte_3;
+//            _message[3] = byte_4;
+//        }
+//
+//         // Set new header for meny
+//         void setHeader(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
+//            // Update header timer until header is displayed
+//            if(_state == _prev_state) _header_timer = millis();
+//            
+//            _header[0] = byte_1;
+//            _header[1] = byte_2;
+//            _header[2] = byte_3;
+//            _header[3] = byte_4;
+//        }
+//
+//        void setInfo(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
+//            // Update info timer
+//            if(_state == _prev_state) _info_timer = millis();
+//            
+//            _info[0] = byte_1;
+//            _info[1] = byte_2;
+//            _info[2] = byte_3;
+//            _info[3] = byte_4;
+//        }
+//
+//        byte toHex(int number){
+//            if(number == 0) return _0;
+//            if(number == 1) return _1;
+//            if(number == 2) return _2;
+//            if(number == 3) return _3;
+//            if(number == 4) return _4;
+//            if(number == 5) return _5;
+//            if(number == 6) return _6;
+//            if(number == 7) return _7;
+//            if(number == 8) return _8;
+//            if(number == 9) return _9;
+//        }
+//
+//    private:
+//        bool _prev_state;
+//        bool _state;
+//        unsigned long _header_timer;
+//        unsigned long _info_timer;
+//        byte _message[4];
+//        byte _header[4];
+//        byte _info[4];
+//};
 
-            disp.clear();
-            disp.brightness(7);  // Brithness, 0 - 7 (min - max)
-        }
+//Screen screen;
+Screen screen(&disp);
 
-        void render() {
-            // Display header only if header is updated
-            if(_state != _prev_state && millis() - _header_timer < 1500) {
-                disp.displayByte(_header); // Display header of menu
-                return;
-            } else if(_state != _prev_state) _state = _prev_state;
-            
-            if(millis() - _info_timer < 2500) {
-                disp.displayByte(_info); // Display info data
-                return;
-            } 
-
-            disp.displayByte(_message); // Display some message in menu main screen
-        }
-
-        // Update current state. Call when header is changed
-        void updateState(){
-            _state = !_prev_state;
-        }
-
-        // Set new message for meny
-        void setMessage(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
-            _message[0] = byte_1;
-            _message[1] = byte_2;
-            _message[2] = byte_3;
-            _message[3] = byte_4;
-        }
-
-         // Set new header for meny
-         void setHeader(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
-            // Update header timer until header is displayed
-            if(_state == _prev_state) _header_timer = millis();
-            
-            _header[0] = byte_1;
-            _header[1] = byte_2;
-            _header[2] = byte_3;
-            _header[3] = byte_4;
-        }
-
-        void setInfo(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
-            // Update info timer
-            if(_state == _prev_state) _info_timer = millis();
-            
-            _info[0] = byte_1;
-            _info[1] = byte_2;
-            _info[2] = byte_3;
-            _info[3] = byte_4;
-        }
-
-        byte toHex(int number){
-            if(number == 0) return _0;
-            if(number == 1) return _1;
-            if(number == 2) return _2;
-            if(number == 3) return _3;
-            if(number == 4) return _4;
-            if(number == 5) return _5;
-            if(number == 6) return _6;
-            if(number == 7) return _7;
-            if(number == 8) return _8;
-            if(number == 9) return _9;
-        }
-
-    private:
-        bool _prev_state;
-        bool _state;
-        unsigned long _header_timer;
-        unsigned long _info_timer;
-        byte _message[4];
-        byte _header[4];
-        byte _info[4];
+// --- Modes of tea machine --- //
+enum modes {
+    normalMode, // Tea is not brewing, we can change params
+    brewingMode, // Tea is brewing
+    settingsMode, // Edit settings mode (change timers for components)
 };
+modes currentMode = normalMode;
 
-Screen screen;
+int current_temp = 30; // Current temperature
+int tea_temperature = 30; // Desired temperature
+int sugar_count = 0; // Number of spoons of sugar
+
+/* --- Timers --- */
+int cup_pump_time = 11 * 1000;
+int sugar_spoon_time = 4 * 1000;
+int mixer_time = 5 * 1000;
+
+struct Settings{
+    int cup_pump_time = 11 * 1000;
+    int sugar_spoon_time = 4 * 1000;
+    int mixer_time = 5 * 1000;
+} settings;
 
 void setup()
 {
@@ -146,21 +168,8 @@ void setup()
     digitalWrite(motor_pin_1, LOW);
     digitalWrite(motor_pin_2, LOW);
   
-    disp.displayByte(_t, _e, _a, _empty);
     screen.updateState(); // First update for display menu header
 }
-
-int current_temp = 30; // Current temperature
-int tea_temperature = 30; // Desired temperature
-int sugar_count = 0; // Number of spoons of sugar
-
-// --- Modes of tea machine --- //
-enum modes {
-    normal, // Tea is not brewing, we can change params
-    brewing, // Tea is brewing
-    settings, // Edit settings mode (change timers for components)
-};
-modes currentMode = normal;
 
 void loop()
 {
@@ -169,7 +178,7 @@ void loop()
      getTemperature(); // Temperature=
     
      // Stages of making tea 
-     if(currentMode == brewing)
+     if(currentMode == brewingMode)
         teaProcess();
      
      screen.render(); // Display some information
@@ -185,14 +194,14 @@ void buttons() {
   
     switch (currentMode) {
         // --- Normal Mode --- //
-        case normal: 
+        case normalMode: 
             screen.setHeader(_S, _t, _O, _P); // Menu header
             screen.setMessage(_H, _i, _empty, _empty); // Menu main text
 
             // Go to the setting mode
             if(millis() - menu_delay_timer_1 > 1000 && temp_button.hold() && sugar_button.hold()){
                 menu_delay_timer_2 = millis(); // Set delay between menu modes
-                currentMode = settings;        // Change mode
+                currentMode = settingsMode;        // Change mode
                 screen.updateState();          // Update header on display
                 
                 break;
@@ -230,11 +239,11 @@ void buttons() {
             break;
 
         // --- Brewing Mode --- //
-        case brewing:
+        case brewingMode:
             break;
             
         // --- Settings Mode --- //
-        case settings:
+        case settingsMode:
             Serial.println("Settings mode is on");
            
             screen.setHeader(_S, _e, _t, _empty);
@@ -243,7 +252,7 @@ void buttons() {
             // Go to the normal mode
             if(millis() - menu_delay_timer_2 > 1000 && temp_button.hold() && sugar_button.hold()){
                 menu_delay_timer_1 = millis();  // Set delay between menu modes
-                currentMode = normal;           // Change mode
+                currentMode = normalMode;       // Change mode
                 screen.updateState();           // Update header on display
                 break;
             }
@@ -344,7 +353,7 @@ void teaProcess(){
       // Done
       case 4:
         Serial.println("Чай готов!");
-        currentMode = normal;
+        currentMode = normalMode;
         break;
 
       default:
