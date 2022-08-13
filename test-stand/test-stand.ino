@@ -1,6 +1,7 @@
 #include <microDS18B20.h> // For thermometer DS18b20
 #include <GyverTM1637.h> // For led display
-#include <EncButton.h>
+#include <EncButton.h> // For buttons
+#include <EEPROM.h> // For EEPROM memory to save settings
 
 /* --- PINS --- */
 #define kettle_relay_pin 4   // Relay of kettle
@@ -25,8 +26,6 @@ int mixer_time = 5 * 1000;
 // Init buttons
 EncButton<EB_TICK, temp_button_pin> temp_button;   
 EncButton<EB_TICK, sugar_button_pin> sugar_button; 
-//button temp_button(temp_button_pin);
-//button sugar_button(sugar_button_pin);
 
 // Connect thermometer DS18b20
 MicroDS18B20<termometr_pin> ds; 
@@ -49,30 +48,26 @@ class Screen {
         }
 
         void render() {
-            Serial.println("-----------------");
-            Serial.print("_header_timer: ");
-            Serial.println(_header_timer);
-
-            Serial.print("_info_timer: ");
-            Serial.println(_info_timer);
-            
-            if(_state != _prev_state && millis() - _header_timer < 2000) {
-                disp.displayByte(_header);
+            // Display header only if header is updated
+            if(_state != _prev_state && millis() - _header_timer < 1500) {
+                disp.displayByte(_header); // Display header of menu
                 return;
             } else if(_state != _prev_state) _state = _prev_state;
             
-            if(millis() - _info_timer < 2000) {
-                disp.displayByte(_info);
+            if(millis() - _info_timer < 2500) {
+                disp.displayByte(_info); // Display info data
                 return;
             } 
 
-            disp.displayByte(_message);
+            disp.displayByte(_message); // Display some message in menu main screen
         }
 
+        // Update current state. Call when header is changed
         void updateState(){
             _state = !_prev_state;
         }
 
+        // Set new message for meny
         void setMessage(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
             _message[0] = byte_1;
             _message[1] = byte_2;
@@ -80,7 +75,9 @@ class Screen {
             _message[3] = byte_4;
         }
 
+         // Set new header for meny
          void setHeader(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
+            // Update header timer until header is displayed
             if(_state == _prev_state) _header_timer = millis();
             
             _header[0] = byte_1;
@@ -90,12 +87,26 @@ class Screen {
         }
 
         void setInfo(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
+            // Update info timer
             if(_state == _prev_state) _info_timer = millis();
             
             _info[0] = byte_1;
             _info[1] = byte_2;
             _info[2] = byte_3;
             _info[3] = byte_4;
+        }
+
+        byte toHex(int number){
+            if(number == 0) return _0;
+            if(number == 1) return _1;
+            if(number == 2) return _2;
+            if(number == 3) return _3;
+            if(number == 4) return _4;
+            if(number == 5) return _5;
+            if(number == 6) return _6;
+            if(number == 7) return _7;
+            if(number == 8) return _8;
+            if(number == 9) return _9;
         }
 
     private:
@@ -135,7 +146,8 @@ void setup()
     digitalWrite(motor_pin_1, LOW);
     digitalWrite(motor_pin_2, LOW);
   
-    screen.setMessage(_t, _e, _a, _empty);
+    disp.displayByte(_t, _e, _a, _empty);
+    screen.updateState(); // First update for display menu header
 }
 
 int current_temp = 30; // Current temperature
@@ -152,19 +164,19 @@ modes currentMode = normal;
 
 void loop()
 {
-     buttons();
+     buttons(); // Buttons actions
   
-     /* --- Temperature --- */
-     getTemperature();
+     getTemperature(); // Temperature=
     
-     /* --- Stages of making tea --- */
+     // Stages of making tea 
      if(currentMode == brewing)
         teaProcess();
      
-     screen.render();
+     screen.render(); // Display some information
 }
 
 void buttons() {
+    // Delay timers between switching menu modes
     static unsigned long menu_delay_timer_1 = millis();
     static unsigned long menu_delay_timer_2 = millis();
   
@@ -174,27 +186,32 @@ void buttons() {
     switch (currentMode) {
         // --- Normal Mode --- //
         case normal: 
-            // First show the mode header
-            screen.setHeader(_S, _t, _O, _P);
-            screen.setMessage(_H, _i, _empty, _empty);
+            screen.setHeader(_S, _t, _O, _P); // Menu header
+            screen.setMessage(_H, _i, _empty, _empty); // Menu main text
 
             // Go to the setting mode
             if(millis() - menu_delay_timer_1 > 1000 && temp_button.hold() && sugar_button.hold()){
-                menu_delay_timer_2 = millis();
-                currentMode = settings;
-                screen.updateState();
+                menu_delay_timer_2 = millis(); // Set delay between menu modes
+                currentMode = settings;        // Change mode
+                screen.updateState();          // Update header on display
+                
                 break;
             }
         
             // Change temp by button
             if (temp_button.click()) {
                 tea_temperature += 5;
-                if(tea_temperature > 100)
+                
+                if(tea_temperature > 100) // Max temp is 100
                     tea_temperature = 30;
+
+                // Show temp on display
+                byte d_1 = tea_temperature / 100 > 0 ? screen.toHex(tea_temperature / 100) : _empty;
+                byte d_2 = screen.toHex(tea_temperature % 100 / 10);
+                byte d_3 = screen.toHex(tea_temperature % 10);
+
+                screen.setInfo(d_1, d_2, d_3, _t);
   
-                screen.setInfo(_d, _i, _S, _P);
-  
-                Serial.println(tea_temperature);
                 break;
             }
           
@@ -202,9 +219,10 @@ void buttons() {
             if (sugar_button.click()) {
               sugar_count += 1;
               if(sugar_count > 4) sugar_count = 0;
-              
-              Serial.println(sugar_count);
-              screen.setInfo(_t, _empty, _empty, _empty);
+
+              // Show count on display
+              byte sugar_count_dig = screen.toHex(sugar_count);
+              screen.setInfo(_empty, _empty, sugar_count_dig, _c);
               
               break;
             }
@@ -224,9 +242,9 @@ void buttons() {
 
             // Go to the normal mode
             if(millis() - menu_delay_timer_2 > 1000 && temp_button.hold() && sugar_button.hold()){
-                menu_delay_timer_1 = millis();
-                currentMode = normal;
-                screen.updateState();
+                menu_delay_timer_1 = millis();  // Set delay between menu modes
+                currentMode = normal;           // Change mode
+                screen.updateState();           // Update header on display
                 break;
             }
             
