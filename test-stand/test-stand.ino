@@ -137,11 +137,15 @@ int cup_pump_time = 11 * 1000;
 int sugar_spoon_time = 4 * 1000;
 int mixer_time = 5 * 1000;
 
+// Defaul settings
 struct Settings{
     int cup_pump_time = 11 * 1000;
     int sugar_spoon_time = 4 * 1000;
     int mixer_time = 5 * 1000;
 } settings;
+
+#define INIT_ADDR 1023  // EEPROM addres for init key
+#define INIT_KEY 0     // EEPROM init key
 
 void setup()
 {
@@ -169,6 +173,18 @@ void setup()
     digitalWrite(motor_pin_2, LOW);
   
     screen.updateState(); // First update for display menu header
+
+    // Init EEPROM
+    if (EEPROM.read(INIT_ADDR) != INIT_KEY) {
+        EEPROM.write(INIT_ADDR, INIT_KEY); // Write init key
+        
+        // Default data
+        EEPROM.put(0, settings);
+    }
+
+    // Read settings
+    EEPROM.get(0, settings);
+    Serial.println(settings.cup_pump_time);
 }
 
 void loop()
@@ -201,7 +217,7 @@ void buttons() {
             // Go to the setting mode
             if(millis() - menu_delay_timer_1 > 1000 && temp_button.hold() && sugar_button.hold()){
                 menu_delay_timer_2 = millis(); // Set delay between menu modes
-                currentMode = settingsMode;        // Change mode
+                currentMode = settingsMode;    // Change mode
                 screen.updateState();          // Update header on display
                 
                 break;
@@ -215,11 +231,11 @@ void buttons() {
                     tea_temperature = 30;
 
                 // Show temp on display
-                byte d_1 = tea_temperature / 100 > 0 ? screen.toHex(tea_temperature / 100) : _empty;
-                byte d_2 = screen.toHex(tea_temperature % 100 / 10);
-                byte d_3 = screen.toHex(tea_temperature % 10);
+//                byte d_1 = tea_temperature / 100 > 0 ? screen.toHex(tea_temperature / 100) : _empty;
+//                byte d_2 = screen.toHex(tea_temperature % 100 / 10);
+//                byte d_3 = screen.toHex(tea_temperature % 10);
 
-                screen.setInfo(d_1, d_2, d_3, _t);
+                screen.setNumber(tea_temperature, _t);
   
                 break;
             }
@@ -230,8 +246,10 @@ void buttons() {
               if(sugar_count > 4) sugar_count = 0;
 
               // Show count on display
-              byte sugar_count_dig = screen.toHex(sugar_count);
-              screen.setInfo(_empty, _empty, sugar_count_dig, _c);
+//              byte sugar_count_dig = screen.toHex(sugar_count);
+//              screen.setInfo(_empty, _empty, sugar_count_dig, _c);
+
+              screen.setNumber(sugar_count, _c);
               
               break;
             }
@@ -244,17 +262,50 @@ void buttons() {
             
         // --- Settings Mode --- //
         case settingsMode:
-            Serial.println("Settings mode is on");
-           
+            static unsigned long water_pump_start_time = 0;
+            
             screen.setHeader(_S, _e, _t, _empty);
             screen.setMessage(_H, _i, _S, _empty);
 
+            if(millis() - menu_delay_timer_2 <= 1000) {
+                water_pump_start_time = millis();
+                break; // Add some delay
+            }
+
             // Go to the normal mode
-            if(millis() - menu_delay_timer_2 > 1000 && temp_button.hold() && sugar_button.hold()){
+            if(temp_button.hold() && sugar_button.hold()){
                 menu_delay_timer_1 = millis();  // Set delay between menu modes
                 currentMode = normalMode;       // Change mode
                 screen.updateState();           // Update header on display
                 break;
+            }
+
+            
+            if(temp_button.press()) {
+                Serial.println("Press");
+                water_pump_start_time = millis();
+
+                screen.setNumber(settings.cup_pump_time / 1000, _c);
+            }
+
+            if(temp_button.hold()) {
+                Serial.println("Hold");
+                int seconds = (millis() - water_pump_start_time) / 1000;
+
+                screen.setNumber(seconds, _c);
+            }
+            
+            if(temp_button.release()) {
+                long water_pump_time = millis() - water_pump_start_time;
+              
+                Serial.println("Reliase");
+                Serial.println(water_pump_time);
+                if(water_pump_start_time > 0 && water_pump_time > 1000){
+                    settings.cup_pump_time = water_pump_time;
+                    screen.setInfo(_S, _A, _U, _E);
+                
+                    EEPROM.put(0, settings);
+                }
             }
             
             break; 
