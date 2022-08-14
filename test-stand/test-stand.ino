@@ -258,6 +258,7 @@ void buttons() {
         // --- Settings Mode --- //
         case settingsMode:
             static unsigned long water_pump_start_time = 0;
+            static unsigned long press_button_delay = 0;
             
             screen.setHeader(_S, _e, _t, _empty);
             screen.setMessage(_H, _i, _S, _empty);
@@ -265,6 +266,7 @@ void buttons() {
             // Add some delay
             if(millis() - menu_delay_timer_2 <= 1000) {
                 water_pump_start_time = millis();
+                press_button_delay = 0;
                 break; 
             }
 
@@ -280,27 +282,33 @@ void buttons() {
 //            function changeWaterPumpTime(water_pump_start_time);
 
             // Set start time when the button is pressed
+            
             if(temp_button.press()) {
-                water_pump_start_time = millis();
-          
-                digitalWrite(motor_pin_1, LOW);
-                digitalWrite(motor_pin_2, HIGH);
-          
                 // Show prevous value on display
                 screen.setNumber(settings.cup_pump_time / 1000, _c);
+
+                water_pump_start_time = millis(); // Save start time
             }
           
             // Display new value when hold the button
             if(temp_button.hold()) {
-                int seconds = (millis() - water_pump_start_time) / 1000;
-          
+                // Get seconds with 1 sec delay of hold
+                int seconds = (millis() - water_pump_start_time - 1000) / 1000;
+
+                // Start sugar dipenser
+                digitalWrite(motor_pin_1, LOW);
+                digitalWrite(motor_pin_2, HIGH);
+
+                // Display new value
                 screen.setNumber(seconds, _c);
             }
           
             // Write he new value to EEPROM when the button is released
             if(temp_button.release()) {
-                long water_pump_time = millis() - water_pump_start_time;
-          
+                // Get time with 1 sec delay of hold
+                long water_pump_time = millis() - water_pump_start_time - 1000; // 
+
+                // Stop sugar dispenser
                 digitalWrite(motor_pin_1, HIGH);
                 digitalWrite(motor_pin_2, HIGH);
               
@@ -308,7 +316,7 @@ void buttons() {
                     settings.cup_pump_time = water_pump_time;
                     screen.setInfo(_S, _A, _U, _E);
                 
-                    EEPROM.put(0, settings);
+                    EEPROM.put(0, settings); // Save to EEPROM
                 }
             }
             
