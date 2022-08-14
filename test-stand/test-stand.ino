@@ -2,7 +2,6 @@
 #include <GyverTM1637.h> // For led display
 #include <EncButton.h> // For buttons
 #include <EEPROM.h> // For EEPROM memory to save settings
-
 #include "Screen.h"
 
 /* --- PINS --- */
@@ -30,94 +29,7 @@ MicroDS18B20<termometr_pin> ds;
 // Connect led display
 GyverTM1637 disp(display_CLK, display_DIO);
 
-
-//class Screen {
-//    public:
-//        Screen() {
-//            _header_timer = millis();
-//            _info_timer = millis();
-//
-//            _prev_state = false;
-//            _state = false;
-//
-//            disp.clear();
-//            disp.brightness(7);  // Brithness, 0 - 7 (min - max)
-//            disp.displayByte(_t, _e, _a, _empty);
-//        }
-//
-//        void render() {
-//            // Display header only if header is updated
-//            if(_state != _prev_state && millis() - _header_timer < 1500) {
-//                disp.displayByte(_header); // Display header of menu
-//                return;
-//            } else if(_state != _prev_state) _state = _prev_state;
-//            
-//            if(millis() - _info_timer < 2500) {
-//                disp.displayByte(_info); // Display info data
-//                return;
-//            } 
-//
-//            disp.displayByte(_message); // Display some message in menu main screen
-//        }
-//
-//        // Update current state. Call when header is changed
-//        void updateState(){
-//            _state = !_prev_state;
-//        }
-//
-//        // Set new message for meny
-//        void setMessage(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
-//            _message[0] = byte_1;
-//            _message[1] = byte_2;
-//            _message[2] = byte_3;
-//            _message[3] = byte_4;
-//        }
-//
-//         // Set new header for meny
-//         void setHeader(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
-//            // Update header timer until header is displayed
-//            if(_state == _prev_state) _header_timer = millis();
-//            
-//            _header[0] = byte_1;
-//            _header[1] = byte_2;
-//            _header[2] = byte_3;
-//            _header[3] = byte_4;
-//        }
-//
-//        void setInfo(byte byte_1, byte byte_2, byte byte_3, byte byte_4){
-//            // Update info timer
-//            if(_state == _prev_state) _info_timer = millis();
-//            
-//            _info[0] = byte_1;
-//            _info[1] = byte_2;
-//            _info[2] = byte_3;
-//            _info[3] = byte_4;
-//        }
-//
-//        byte toHex(int number){
-//            if(number == 0) return _0;
-//            if(number == 1) return _1;
-//            if(number == 2) return _2;
-//            if(number == 3) return _3;
-//            if(number == 4) return _4;
-//            if(number == 5) return _5;
-//            if(number == 6) return _6;
-//            if(number == 7) return _7;
-//            if(number == 8) return _8;
-//            if(number == 9) return _9;
-//        }
-//
-//    private:
-//        bool _prev_state;
-//        bool _state;
-//        unsigned long _header_timer;
-//        unsigned long _info_timer;
-//        byte _message[4];
-//        byte _header[4];
-//        byte _info[4];
-//};
-
-//Screen screen;
+// Initialize Screen object
 Screen screen(&disp);
 
 // --- Modes of tea machine --- //
@@ -257,8 +169,9 @@ void buttons() {
             
         // --- Settings Mode --- //
         case settingsMode:
-            static unsigned long water_pump_start_time = 0;
             static unsigned long press_button_delay = 0;
+            static unsigned long water_pump_start_time = 0;
+            static unsigned long sugar_dispenser_start_time = 0;
             
             screen.setHeader(_S, _e, _t, _empty);
             screen.setMessage(_H, _i, _S, _empty);
@@ -266,6 +179,7 @@ void buttons() {
             // Add some delay
             if(millis() - menu_delay_timer_2 <= 1000) {
                 water_pump_start_time = millis();
+                sugar_dispenser_start_time = millis();
                 press_button_delay = 0;
                 break; 
             }
@@ -279,46 +193,47 @@ void buttons() {
             }
 
             
-//            function changeWaterPumpTime(water_pump_start_time);
+            changeWaterPumpTime(water_pump_start_time);
+            changeSugarDispenserTime(sugar_dispenser_start_time);
 
             // Set start time when the button is pressed
             
-            if(temp_button.press()) {
-                // Show prevous value on display
-                screen.setNumber(settings.cup_pump_time / 1000, _c);
-
-                water_pump_start_time = millis(); // Save start time
-            }
-          
-            // Display new value when hold the button
-            if(temp_button.hold()) {
-                // Get seconds with 1 sec delay of hold
-                int seconds = (millis() - water_pump_start_time - 1000) / 1000;
-
-                // Start sugar dipenser
-                digitalWrite(motor_pin_1, LOW);
-                digitalWrite(motor_pin_2, HIGH);
-
-                // Display new value
-                screen.setNumber(seconds, _c);
-            }
-          
-            // Write he new value to EEPROM when the button is released
-            if(temp_button.release()) {
-                // Get time with 1 sec delay of hold
-                long water_pump_time = millis() - water_pump_start_time - 1000; // 
-
-                // Stop sugar dispenser
-                digitalWrite(motor_pin_1, HIGH);
-                digitalWrite(motor_pin_2, HIGH);
-              
-                if(water_pump_start_time > 0 && water_pump_time > 1000){
-                    settings.cup_pump_time = water_pump_time;
-                    screen.setInfo(_S, _A, _U, _E);
-                
-                    EEPROM.put(0, settings); // Save to EEPROM
-                }
-            }
+//            if(temp_button.press()) {
+//                // Show prevous value on display
+//                screen.setNumber(settings.cup_pump_time / 1000, _c);
+//
+//                water_pump_start_time = millis(); // Save start time
+//            }
+//          
+//            // Display new value when hold the button
+//            if(temp_button.hold()) {
+//                // Get seconds with 1 sec delay of hold
+//                int seconds = (millis() - water_pump_start_time - 1000) / 1000;
+//
+//                // Start sugar dipenser
+//                digitalWrite(motor_pin_1, LOW);
+//                digitalWrite(motor_pin_2, HIGH);
+//
+//                // Display new value
+//                screen.setNumber(seconds, _c);
+//            }
+//          
+//            // Write he new value to EEPROM when the button is released
+//            if(temp_button.release()) {
+//                // Get time with 1 sec delay of hold
+//                long water_pump_time = millis() - water_pump_start_time - 1000; // 
+//
+//                // Stop sugar dispenser
+//                digitalWrite(motor_pin_1, HIGH);
+//                digitalWrite(motor_pin_2, HIGH);
+//              
+//                if(water_pump_start_time > 0 && water_pump_time > 1000){
+//                    settings.cup_pump_time = water_pump_time;
+//                    screen.setInfo(_S, _A, _U, _E);
+//                
+//                    EEPROM.put(0, settings); // Save to EEPROM
+//                }
+//            }
             
             break; 
     }
@@ -429,37 +344,88 @@ void teaProcess(){
     }
 }
 
-//void changeWaterPumpTime(unsigned long timer) {
-//    // Set start time when the button is pressed
-//    if(temp_button.press()) {
-//        timer = millis();
-//  
-//        digitalWrite(motor_pin_1, LOW);
-//        digitalWrite(motor_pin_2, HIGH);
-//  
-//        // Show prevous value on display
-//        screen.setNumber(settings.cup_pump_time / 1000, _c);
-//    }
-//  
-//    // Display new value when hold the button
-//    if(temp_button.hold()) {
-//        int seconds = (millis() - water_pump_start_time) / 1000;
-//  
-//        screen.setNumber(seconds, _c);
-//    }
-//  
-//    // Write he new value to EEPROM when the button is released
-//    if(temp_button.release()) {
-//        long water_pump_time = millis() - water_pump_start_time;
-//  
-//        digitalWrite(motor_pin_1, HIGH);
-//        digitalWrite(motor_pin_2, HIGH);
-//      
-//        if(water_pump_start_time > 0 && water_pump_time > 1000){
-//            settings.cup_pump_time = water_pump_time;
-//            screen.setInfo(_S, _A, _U, _E);
-//        
-//            EEPROM.put(0, settings);
-//        }
-//    }
-//}
+/**
+ * Change one cup water pump time by temp_button
+ */
+void changeWaterPumpTime(unsigned long _timer) {
+    static unsigned long timer = _timer; // Copy timer with default value
+    
+    if(temp_button.press()) {
+        // Show prevous value on display
+        screen.setNumber(settings.cup_pump_time / 1000, _c);
+
+        timer = millis(); // Save start time
+    }
+  
+    // Display new value when hold the button
+    if(temp_button.hold()) {
+        // Get seconds with 1 sec delay of hold
+        int seconds = (millis() - timer - 1000) / 1000;
+
+        // Start water pump
+        digitalWrite(hot_pump_pin, HIGH);
+
+        // Display new value
+        screen.setNumber(seconds, _c);
+    }
+  
+    // Write he new value to EEPROM when the button is released
+    if(temp_button.release()) {
+        // Get time with 1 sec delay of hold
+        long water_pump_time = millis() - timer - 1000; // 
+
+        // Stop water pump
+        digitalWrite(hot_pump_pin, LOW);
+      
+        if(timer > 0 && water_pump_time > 1000){
+            settings.cup_pump_time = water_pump_time;
+            screen.setInfo(_S, _A, _U, _E);
+        
+            EEPROM.put(0, settings); // Save to EEPROM
+        }
+    }
+}
+
+/**
+ * Change sugar dispenser one spoon time by sugar_button
+ */
+void changeSugarDispenserTime(unsigned long _timer) {
+    static unsigned long timer = _timer; // Copy timer with default value
+    
+    if(sugar_button.press()) {
+        // Show prevous value on display
+        screen.setNumber(settings.sugar_spoon_time / 1000, _c);
+
+        timer = millis(); // Save start time
+    }
+  
+    // Display new value when hold the button
+    if(sugar_button.hold()) {
+        // Get seconds with 1 sec delay of hold
+        int seconds = (millis() - timer - 1000) / 1000;
+
+        // Start sugar dipenser
+        digitalWrite(motor_pin_1, LOW);
+        digitalWrite(motor_pin_2, HIGH);
+
+        // Display new value
+        screen.setNumber(seconds, _c);
+    }
+  
+    // Write he new value to EEPROM when the button is released
+    if(sugar_button.release()) {
+        // Get time with 1 sec delay of hold
+        long water_pump_time = millis() - timer - 1000; // 
+
+        // Stop sugar dispenser
+        digitalWrite(motor_pin_1, HIGH);
+        digitalWrite(motor_pin_2, HIGH);
+      
+        if(timer > 0 && water_pump_time > 1000){
+            settings.sugar_spoon_time = water_pump_time;
+            screen.setInfo(_S, _A, _U, _E);
+        
+            EEPROM.put(0, settings); // Save to EEPROM
+        }
+    }
+}
