@@ -38,11 +38,11 @@ enum modes {
     brewingMode, // Tea is brewing
     settingsMode, // Edit settings mode (change timers for components)
 };
-modes currentMode = normalMode;
+modes currentMode = brewingMode;
 
 int current_temp = 30; // Current temperature
-int tea_temperature = 30; // Desired temperature
-int sugar_count = 0; // Number of spoons of sugar
+int tea_temperature = 20; // Desired temperature
+int sugar_count = 2; // Number of spoons of sugar
 int cups_count = 1; // Number of cups
 
 /* --- Timers --- */
@@ -86,6 +86,7 @@ void setup()
     digitalWrite(motor_pin_2, LOW);
   
     screen.updateState(); // First update for display menu header
+    disp.displayByte(_t, _e, _a, _empty);
 
     // Init EEPROM
     if (EEPROM.read(INIT_ADDR) != INIT_KEY) {
@@ -125,8 +126,7 @@ void buttons() {
         // --- Normal Mode --- //
         case normalMode: 
             screen.setHeader(_S, _t, _O, _P); // Menu header
-//            screen.setMessage(_H, _i, _empty, _empty); // Menu main text
-            screen.setMessage(current_temp, _t); // Menu main text
+            screen.setMessage(current_temp, _t); // Menu main text is temperature
 
             // Go to the setting mode
             if(millis() - menu_delay_timer_1 > 1000 && temp_button.hold() && sugar_button.hold()){
@@ -174,7 +174,7 @@ void buttons() {
             static unsigned long sugar_dispenser_start_time = 0;
             
             screen.setHeader(_S, _e, _t, _empty);
-            screen.setMessage(_H, _i, _S, _empty);
+            screen.setMessage(_C, _empty, _empty, _8);
 
             // Add some delay
             if(millis() - menu_delay_timer_2 <= 1000) {
@@ -274,21 +274,24 @@ void teaProcess(){
         Serial.println("Чайник включён");
         digitalWrite(kettle_relay_pin, LOW);
 
+        screen.setMessage(current_temp, _t);
+
         if(current_temp >= tea_temperature){
           stage++;
           timer = millis();
           digitalWrite(kettle_relay_pin, HIGH);
         }
+        
         break;
 
       // Pump
       case 1:
         Serial.println("Помпа включена");
 
+        screen.setMessage(_P, _u, 0x40, _P);
+
         digitalWrite(hot_pump_pin, HIGH);
-        
-        Serial.println(millis(), timer);
-        Serial.println(cup_pump_time);
+
         if(millis() - timer > settings.cup_pump_time * cups_count) {
             stage++;
             timer = millis();
@@ -298,22 +301,39 @@ void teaProcess(){
         break;
 
       // Sugar
-      case 2:
-        Serial.println("Дозатор сахара включён");
+      case 2: {
+          Serial.println("Дозатор сахара включён");
+  
+          // Skip stage if there is no sugar
+          if(sugar_count == 0) {
+              stage++;
+              timer = millis();
+              break;
+          }
 
-        if(sugar_count == 0) {
-            stage++;
-            timer = millis();
-        }
+          unsigned long totalTime = settings.sugar_spoon_time * sugar_count;
+          Serial.print("Timer: ");
+          Serial.println(millis() - timer + 300);
 
-        digitalWrite(motor_pin_1, LOW);
-        digitalWrite(motor_pin_2, HIGH);
+          Serial.print("Total: ");
+          Serial.println(totalTime);
 
-        if(millis() - timer > settings.sugar_spoon_time * sugar_count) {
-          stage++;
-          timer = millis();
-          digitalWrite(motor_pin_1, HIGH);
+          Serial.print("Result: ");
+          Serial.println((millis() - timer + 300) / totalTime * sugar_count);
+          
+          screen.setMessage(int((float)(millis() - timer + 300) / totalTime * sugar_count) , _c);
+  
+          // Turn on the sugar dispenser
+          digitalWrite(motor_pin_1, LOW);
           digitalWrite(motor_pin_2, HIGH);
+  
+          // Go to the next stage after time
+          if(millis() - timer > totalTime) {
+              stage++;
+              timer = millis();
+              digitalWrite(motor_pin_1, HIGH);
+              digitalWrite(motor_pin_2, HIGH);
+          }
         }
         
         break;
@@ -321,6 +341,8 @@ void teaProcess(){
       // Mixer
       case 3:
         Serial.println("Включаем мешалку");
+
+        screen.setMessage(_S, _H, _U, _F);
 
         digitalWrite(mixer_relay_pin, HIGH);
 
@@ -335,7 +357,7 @@ void teaProcess(){
       // Done
       case 4:
         Serial.println("Чай готов!");
-        screen.setInfo(_empty, _e, _n, _d);
+        screen.setInfo(_empty, _E, _n, _d);
         currentMode = normalMode;
         break;
 
