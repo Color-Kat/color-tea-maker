@@ -13,6 +13,7 @@
 #define mixer_relay_pin A1   // Mixer pin
 #define display_CLK A3       // CLK pin of led display
 #define display_DIO A4       // CLK pin of led display
+#define buzzer_pin 9         // Buzzer pin
 
 #define temp_button_pin 12   // Button for change the temperature
 #define sugar_button_pin 11  // Button for change number of sugar spoons
@@ -46,7 +47,7 @@ modes currentMode = normalMode;
 int current_temp = 30; // Current temperature
 int tea_temperature = 20; // Desired temperature
 int sugar_count = 2; // Number of spoons of sugar
-int cups_count = 0; // Number of cups
+int cups_count = 1; // Number of cups
 
 /* --- Timers --- */
 int cup_pump_time = 11 * 1000;
@@ -87,6 +88,9 @@ void setup()
     pinMode(motor_pin_2, OUTPUT);
     digitalWrite(motor_pin_1, LOW);
     digitalWrite(motor_pin_2, LOW);
+
+    // Buzzer
+    pinMode(buzzer_pin, OUTPUT);
   
     screen.updateState(); // First update for display menu header
     disp.displayByte(_t, _e, _a, _empty);
@@ -109,6 +113,8 @@ void loop()
      temp_button.tick();
      sugar_button.tick();
      start_button.tick();
+
+     tone(buzzer_pin, 2000);
   
      buttons(); // Buttons actions
   
@@ -219,7 +225,7 @@ void buttons() {
             screen.setMessage(current_temp, _t); // Display current temperature
 
             // Switch off the kettle when the temperature is riched
-            if(current_temp >= 70) {
+            if(current_temp >= 95) {
                 digitalWrite(kettle_relay_pin, LOW); // Switch off the kettle
                 currentMode = normalMode;            // Change mode
                 screen.updateState();                // Update header on display
@@ -311,7 +317,7 @@ void teaProcess(){
           // Skip stage if there is no sugar
           if(sugar_count == 0) {
               // And wait the mixer time ends for tea withou mixing sugar 
-              if(millis() - timer > 10000) {
+              if(millis() - timer > 15000) {
                   stage++;
                   timer = millis();
                   digitalWrite(mixer_relay_pin, LOW);
