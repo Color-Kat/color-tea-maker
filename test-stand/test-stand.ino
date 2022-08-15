@@ -36,9 +36,10 @@ Screen screen(&disp);
 
 // --- Modes of tea machine --- //
 enum modes {
-    normalMode, // Tea is not brewing, we can change params
-    brewingMode, // Tea is brewing
-    settingsMode, // Edit settings mode (change timers for components)
+    normalMode,    // Tea is not brewing, we can change params
+    brewingMode,   // Tea is brewing
+    settingsMode,  // Edit settings mode (change timers for components)
+    boilingMode    // Boil the water
 };
 modes currentMode = normalMode;
 
@@ -164,17 +165,23 @@ void buttons() {
               break;
             }
 
+            // Start boil water by hold Start button
+            if(start_button.hold()){
+                screen.updateState();
+                currentMode = boilingMode;
+                break;
+            }
+
             // Start making tea by start button release
             if(start_button.click()){
                 screen.updateState();
                 currentMode = brewingMode;
+                break;
             }
                         
             break;
 
-        // --- Brewing Mode --- //
-        case brewingMode:
-            break;
+       
             
         // --- Settings Mode --- //
         case settingsMode:
@@ -205,24 +212,27 @@ void buttons() {
             changeSugarDispenserTime(sugar_dispenser_start_time);
             
             break; 
-    }
-}
 
-/**
- * Every second get new value of the temperature
- */
-void getTemperature(){
-    ds.requestTemp();
-    if(ds.readTemp()) current_temp = ds.getTemp();
-  
-    static unsigned long last_temp_request = 0;
-    if(millis() - last_temp_request > 1000) {
-        last_temp_request = millis();
-        if(ds.readTemp())
-            current_temp = ds.getTemp();
-      
-        ds.requestTemp();
-        Serial.println(current_temp);
+        // --- Boiling Mode --- //
+        case boilingMode:
+            screen.setHeader(_8, _O, _l, _L); // Header of boiling mode
+            screen.setMessage(current_temp, _t); // Display current temperature
+
+            // Switch off the kettle when the temperature is riched
+            if(current_temp >= 70) {
+                digitalWrite(kettle_relay_pin, LOW); // Switch off the kettle
+                currentMode = normalMode;            // Change mode
+                screen.updateState();                // Update header on display
+                break;
+            }
+
+            digitalWrite(kettle_relay_pin, HIGH);
+        
+            break;
+
+        // --- Brewing Mode --- //
+        case brewingMode:
+            break;
     }
 }
 
@@ -285,11 +295,10 @@ void teaProcess(){
 
         digitalWrite(mixer_relay_pin, HIGH);
 
-        // Start spining for 3 seconds
-        if(millis() - timer > 3000) {
+        // Start spining for 4.5 seconds
+        if(millis() - timer > 4500) {
             stage++;
             timer = millis();
-//            digitalWrite(mixer_relay_pin, LOW);
         }
         
         break;
@@ -337,22 +346,38 @@ void teaProcess(){
                   digitalWrite(mixer_relay_pin, LOW); // Stop mixer
               }
           }
-        }
+      }
         
-        break;
+      break;
 
-     
-
-      // Done
+      // Tea is done
       case 4:
-        Serial.println("Чай готов!");
-        screen.setInfo(_empty, _E, _n, _d);
-        currentMode = normalMode;
-        stage = 0;
-        break;
+          Serial.println("Чай готов!");
+          screen.setInfo(_empty, _E, _n, _d);
+          currentMode = normalMode;
+          stage = 0;
+          break;
 
       default:
-        break;
+          break;
+    }
+}
+
+/**
+ * Every second get new value of the temperature
+ */
+void getTemperature(){
+    ds.requestTemp();
+    if(ds.readTemp()) current_temp = ds.getTemp();
+  
+    static unsigned long last_temp_request = 0;
+    if(millis() - last_temp_request > 1000) {
+        last_temp_request = millis();
+        if(ds.readTemp())
+            current_temp = ds.getTemp();
+      
+        ds.requestTemp();
+        Serial.println(current_temp);
     }
 }
 
