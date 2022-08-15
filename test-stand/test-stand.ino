@@ -277,51 +277,71 @@ void teaProcess(){
         
         break;
 
-      // Sugar
-      case 2: {
-          Serial.println("Дозатор сахара включён");
-  
-          // Skip stage if there is no sugar
-          if(sugar_count == 0) {
-              stage++;
-              timer = millis();
-              break;
-          }
-
-          unsigned long totalTime = settings.sugar_spoon_time * sugar_count;
-          
-          screen.setMessage(int((float)(millis() - timer + 300) / totalTime * sugar_count) , _c);
-  
-          // Turn on the sugar dispenser
-          digitalWrite(motor_pin_1, LOW);
-          digitalWrite(motor_pin_2, HIGH);
-  
-          // Go to the next stage after time
-          if(millis() - timer > totalTime) {
-              stage++;
-              timer = millis();
-              digitalWrite(motor_pin_1, HIGH);
-              digitalWrite(motor_pin_2, HIGH);
-          }
-        }
-        
-        break;
-
-      // Mixer
-      case 3:
+      // Turn on the mixer for prepare the spn for sugar dosing
+      case 2:
         Serial.println("Включаем мешалку");
 
         screen.setMessage(_S, _H, _U, _F);
 
         digitalWrite(mixer_relay_pin, HIGH);
 
-        if(millis() - timer > mixer_time) {
+        // Start spining for 3 seconds
+        if(millis() - timer > 3000) {
             stage++;
             timer = millis();
-            digitalWrite(mixer_relay_pin, LOW);
+//            digitalWrite(mixer_relay_pin, LOW);
         }
         
         break;
+
+      // Sugar
+      case 3: {
+          Serial.println("Дозатор сахара включён");
+
+          // --- No sugar --- //
+          // Skip stage if there is no sugar
+          if(sugar_count == 0) {
+              // And wait the mixer time ends for tea withou mixing sugar 
+              if(millis() - timer > 10000) {
+                  stage++;
+                  timer = millis();
+                  digitalWrite(mixer_relay_pin, LOW);
+              }
+              
+              break;
+          }
+
+          // --- Dispense sugar --- //
+          // Get total dispense time
+          unsigned long totalTime = settings.sugar_spoon_time * sugar_count;
+
+          // Display current count of sugar
+          if(millis() - timer < totalTime)
+              screen.setMessage(int((float)(millis() - timer + 300) / totalTime * sugar_count) , _c);
+  
+          // Turn on the sugar dispenser
+          digitalWrite(motor_pin_1, LOW);
+          digitalWrite(motor_pin_2, HIGH);
+  
+          // Go to the next stage after end of dosing sugar and end of mixing tea
+          if(millis() - timer > totalTime) {
+              static unsigned long mixer_timer = millis();
+
+              // Stop sugar dosing
+              digitalWrite(motor_pin_1, HIGH);
+              digitalWrite(motor_pin_2, HIGH);
+
+              if(millis() - mixer_timer > 5000) {
+                  timer = millis();
+                  stage++;
+                  digitalWrite(mixer_relay_pin, LOW); // Stop mixer
+              }
+          }
+        }
+        
+        break;
+
+     
 
       // Done
       case 4:
