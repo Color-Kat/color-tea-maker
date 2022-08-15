@@ -16,12 +16,14 @@
 
 #define temp_button_pin 12   // Button for change the temperature
 #define sugar_button_pin 11  // Button for change number of sugar spoons
+#define start_button_pin 10  // Button for start brewing tea
 
 // --- Libs --- //
 
 // Init buttons
 EncButton<EB_TICK, temp_button_pin> temp_button;   
 EncButton<EB_TICK, sugar_button_pin> sugar_button; 
+EncButton<EB_TICK, start_button_pin> start_button; 
 
 // Connect thermometer DS18b20
 MicroDS18B20<termometr_pin> ds; 
@@ -38,17 +40,17 @@ enum modes {
     brewingMode, // Tea is brewing
     settingsMode, // Edit settings mode (change timers for components)
 };
-modes currentMode = brewingMode;
+modes currentMode = normalMode;
 
 int current_temp = 30; // Current temperature
 int tea_temperature = 20; // Desired temperature
 int sugar_count = 2; // Number of spoons of sugar
-int cups_count = 1; // Number of cups
+int cups_count = 0; // Number of cups
 
 /* --- Timers --- */
 int cup_pump_time = 11 * 1000;
 int sugar_spoon_time = 4 * 1000;
-int mixer_time = 5 * 1000;
+int mixer_time = 20 * 1000;
 
 // Defaul settings
 struct Settings{
@@ -103,6 +105,10 @@ void setup()
 
 void loop()
 {
+     temp_button.tick();
+     sugar_button.tick();
+     start_button.tick();
+  
      buttons(); // Buttons actions
   
      getTemperature(); // Temperature=
@@ -118,9 +124,6 @@ void buttons() {
     // Delay timers between switching menu modes
     static unsigned long menu_delay_timer_1 = millis();
     static unsigned long menu_delay_timer_2 = millis();
-  
-    temp_button.tick();
-    sugar_button.tick();
   
     switch (currentMode) {
         // --- Normal Mode --- //
@@ -160,6 +163,12 @@ void buttons() {
               
               break;
             }
+
+            // Start making tea by start button release
+            if(start_button.click()){
+                screen.updateState();
+                currentMode = brewingMode;
+            }
                         
             break;
 
@@ -192,48 +201,8 @@ void buttons() {
                 break;
             }
 
-            
             changeWaterPumpTime(water_pump_start_time);
             changeSugarDispenserTime(sugar_dispenser_start_time);
-
-            // Set start time when the button is pressed
-            
-//            if(temp_button.press()) {
-//                // Show prevous value on display
-//                screen.setNumber(settings.cup_pump_time / 1000, _c);
-//
-//                water_pump_start_time = millis(); // Save start time
-//            }
-//          
-//            // Display new value when hold the button
-//            if(temp_button.hold()) {
-//                // Get seconds with 1 sec delay of hold
-//                int seconds = (millis() - water_pump_start_time - 1000) / 1000;
-//
-//                // Start sugar dipenser
-//                digitalWrite(motor_pin_1, LOW);
-//                digitalWrite(motor_pin_2, HIGH);
-//
-//                // Display new value
-//                screen.setNumber(seconds, _c);
-//            }
-//          
-//            // Write he new value to EEPROM when the button is released
-//            if(temp_button.release()) {
-//                // Get time with 1 sec delay of hold
-//                long water_pump_time = millis() - water_pump_start_time - 1000; // 
-//
-//                // Stop sugar dispenser
-//                digitalWrite(motor_pin_1, HIGH);
-//                digitalWrite(motor_pin_2, HIGH);
-//              
-//                if(water_pump_start_time > 0 && water_pump_time > 1000){
-//                    settings.cup_pump_time = water_pump_time;
-//                    screen.setInfo(_S, _A, _U, _E);
-//                
-//                    EEPROM.put(0, settings); // Save to EEPROM
-//                }
-//            }
             
             break; 
     }
@@ -267,19 +236,27 @@ void getTemperature(){
 void teaProcess(){
     static uint8_t stage = 0;
     static long timer = millis();
+
+    // Stop making tea by start button click
+    if(start_button.click()){
+        stage = 4;
+        timer = millis();
+        digitalWrite(kettle_relay_pin, LOW);
+    }
     
     switch (stage) {
       // Kettle
       case 0:
         Serial.println("Чайник включён");
-        digitalWrite(kettle_relay_pin, LOW);
+        digitalWrite(kettle_relay_pin, HIGH);
 
+        screen.setHeader(_9, _O, _empty, _empty);
         screen.setMessage(current_temp, _t);
 
         if(current_temp >= tea_temperature){
           stage++;
           timer = millis();
-          digitalWrite(kettle_relay_pin, HIGH);
+          digitalWrite(kettle_relay_pin, LOW);
         }
         
         break;
@@ -288,7 +265,7 @@ void teaProcess(){
       case 1:
         Serial.println("Помпа включена");
 
-        screen.setMessage(_P, _u, 0x40, _P);
+        screen.setMessage(_P, _U, 0x40, _P);
 
         digitalWrite(hot_pump_pin, HIGH);
 
@@ -312,14 +289,6 @@ void teaProcess(){
           }
 
           unsigned long totalTime = settings.sugar_spoon_time * sugar_count;
-          Serial.print("Timer: ");
-          Serial.println(millis() - timer + 300);
-
-          Serial.print("Total: ");
-          Serial.println(totalTime);
-
-          Serial.print("Result: ");
-          Serial.println((millis() - timer + 300) / totalTime * sugar_count);
           
           screen.setMessage(int((float)(millis() - timer + 300) / totalTime * sugar_count) , _c);
   
@@ -359,6 +328,7 @@ void teaProcess(){
         Serial.println("Чай готов!");
         screen.setInfo(_empty, _E, _n, _d);
         currentMode = normalMode;
+        stage = 0;
         break;
 
       default:
