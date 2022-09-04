@@ -1,4 +1,5 @@
 #include <EncButton.h> // For buttons
+#include "Screen.h"
 
 /* --- PINS --- */
 #define kettle_relay_pin 4   // Relay of kettle
@@ -20,6 +21,8 @@ EncButton<EB_TICK, r_button_pin> r_button;
 #include <LCD_1602_RUS_ALL.h> // For lcd display
 LCD_1602_RUS lcd(0x27, 16, 2);
 
+Screen screen(&lcd);
+
 // --- Modes of tea machine --- //
 enum modes {
     normalMode,
@@ -32,27 +35,34 @@ enum modes {
 };
 modes currentMode = normalMode;
 
+// Current values
+int current_temp = 25; // Current temperature
+int tea_temp = 27; // Desired temperature
+int sugar_count = 2; // Number of spoons of sugar
+int cups_count = 1; // Number of cups
+
 void setup()
 {
     Serial.begin(9600);
 
-    lcd.init();
-    lcd.backlight();
-    lcd.setCursor(0, 0);
-    lcd.print("Чай машина OC");
-    lcd.setCursor(4, 1);
-    lcd.print("Loading...");
-
     r_button.setButtonLevel(HIGH);
     l_button.setButtonLevel(HIGH);
 
+    // Thermometer
+    pinMode(termometr_pin, INPUT);
+
     pinMode(potent_pin, INPUT);
 //    pinMode(mixer_pin, OUTPUT);
+
+    screen.init();
+    screen.update();
 }
 
 void loop() {
     l_button.tick();
     r_button.tick();
+
+    screen.render();
 
     buttons();
 //    Serial.println(potentRange(0, 4));
@@ -66,19 +76,23 @@ void buttons() {
     switch (currentMode) {
         // --- Normal Mode --- //
         case normalMode:
-//            setMenuHeader("Информация");
-//            setMenuMessage("Температура: 25C");
+            screen.setHeader(String("     Чай: (") + current_temp + String("°C)"));
+            screen.setMessage(
+              tea_temp + String("°C  ") +
+              sugar_count + String("Л   ") +
+              cups_count + String("Круж")
+            );
 
             // Go to the setting mode
             if(l_button.hold() && r_button.hold()){
+                screen.update();
                 currentMode = settingsMode; // Change mode
-                lcd.clear();
                 break;
             }
         
             // Change temp by button
             if (l_button.click()) {
-                lcd.clear();
+                screen.update();
                 currentMode = cupsMode;
                 break;
             }
@@ -86,13 +100,12 @@ void buttons() {
             break;
 
         case cupsMode:
-            setMenuHeader("Кружки");
-            setMenuMessage("2");
-            lcd.blink();
+            screen.setHeader("Кружки");
+            screen.setMessage("2");
 
             // Change temp by button
             if (l_button.click()) {
-                lcd.clear();
+                screen.update();
                 currentMode = tempMode;
                 break;
             }
@@ -106,13 +119,12 @@ void buttons() {
             break;
 
         case tempMode:
-            setMenuHeader("Температура");
-            setMenuMessage("25");
-            lcd.blink();
+            screen.setHeader("Температура");
+            screen.setMessage("25");
 
             // Change temp by button
             if (l_button.click()) {
-                lcd.clear();
+                screen.update();
                 currentMode = sugarMode;
                 
                 break;
@@ -127,12 +139,12 @@ void buttons() {
             break;
 
        case sugarMode:
-            setMenuHeader("Сахар");
-            setMenuMessage("2 ложки");
+            screen.setHeader("Сахар");
+            screen.setMessage("2 ложки");
 
             // Change temp by button
             if (l_button.click()) {
-                lcd.clear();
+                screen.update();
                 currentMode = normalMode;
                 break;
             }
@@ -147,8 +159,8 @@ void buttons() {
             
         // --- Settings Mode --- //
         case settingsMode:
-            setMenuHeader("Настройки");
-            setMenuMessage("2 ложки");
+            screen.setHeader("Настройки");
+            screen.setMessage("2 ложки");
 //            static unsigned long press_button_delay = 0;
 //            static unsigned long water_pump_start_time = 0;
 //            static unsigned long sugar_dispenser_start_time = 0;
@@ -197,16 +209,6 @@ void buttons() {
         case brewingMode:
             break;
     }
-}
-
-void setMenuHeader(const char *_header) {
-    lcd.setCursor(0, 0);
-    lcd.print(_header);
-}
-
-void setMenuMessage(const char *_message) {
-    lcd.setCursor(0, 1);
-    lcd.print(_message);
 }
 
 int potentRange(int min, int max) {
