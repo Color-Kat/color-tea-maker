@@ -8,12 +8,13 @@
 #define motor_pin_2 3        // Sugar dispenser
 #define mixer_pin A1         // Mixer pin
 
-#define temp_button_pin 12   // Button for change the temperature
-#define sugar_button_pin 11  // Button for change number of sugar spoons
-#define start_button_pin 10  // Button for start brewing tea
+#define l_button_pin 11      // Left button
+#define r_button_pin 12      // Right button
+#define potent_pin A3       // Potentiometer pin for set int values
 
 /* --- Buttons --- */
-EncButton<EB_TICK, sugar_button_pin> sugar_button; 
+EncButton<EB_TICK, l_button_pin> l_button; 
+EncButton<EB_TICK, r_button_pin> r_button; 
 
 #define _LCD_TYPE 1
 #include <LCD_1602_RUS_ALL.h> // For lcd display
@@ -30,19 +31,26 @@ void setup()
     lcd.setCursor(4, 1);
     lcd.print("Loading...");
 
-//    pinMode(sugar_button_pin, INPUT);
-    sugar_button.setButtonLevel(HIGH);
-    pinMode(mixer_pin, OUTPUT);
+    r_button.setButtonLevel(HIGH);
+    l_button.setButtonLevel(HIGH);
+
+    pinMode(potent_pin, INPUT);
+//    pinMode(mixer_pin, OUTPUT);
 }
 
 void loop() {
-    sugar_button.tick();
+    l_button.tick();
+    r_button.tick();
 //    boolean isActive = digitalRead(sugar_button_pin);
 
-    if(sugar_button.hold()) {
-      Serial.println("click");
-        digitalWrite(mixer_pin, HIGH);
-    } else {
-        digitalWrite(mixer_pin, LOW);
+    Serial.println(analogRead(potent_pin));
+    delay(50);
+
+    if(l_button.click()) {
+        Serial.println("left");
+    }
+    
+    if(r_button.click()) {
+        Serial.println("right");
     }
 }
