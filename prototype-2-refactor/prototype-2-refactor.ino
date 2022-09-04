@@ -77,6 +77,8 @@ void loop() {
 
 void buttons() {
     static boolean isEdited = false;
+    static unsigned long menu_delay_timer_1 = millis();
+    static unsigned long menu_delay_timer_2 = millis();
   
     // Every second update info on LCD screen to display current temp
     static unsigned long updateTempTimer = millis();
@@ -105,9 +107,9 @@ void buttons() {
             }
 
             // Go to the setting mode
-            if(l_button.hold() && r_button.hold()){
-                Serial.println("hold");
+            if(l_button.hold() && r_button.hold() && millis() - menu_delay_timer_1 > 1000){
                 isEdited = false;
+                menu_delay_timer_2 = millis();
                 currentMode = settingsMode; // Change mode
                 screen.update();
                 break;
@@ -190,7 +192,7 @@ void buttons() {
        case sugarMode:
             screen.setHeader("Сахар");
             screen.setInfo("", 15);
-            screen.setMessage("2 ложки");
+            screen.setMessage(sugar_count + String(" ч/л"));
             
             // Change temp by button
             if (l_button.click()) {
@@ -200,10 +202,19 @@ void buttons() {
                 break;
             }
           
-            // Change number of sugar spoons by button
-            if (r_button.click()) {
-                
-                break;
+            // Switch edit mode
+            if (r_button.click())
+                isEdited = !isEdited;
+
+            if(isEdited){
+                lcd.setCursor(5, 1); // For blink
+                int newValue = potentRange(0, 4); // Get value from potentiometer
+
+                // Update screen data
+                if(newValue != sugar_count) {
+                    sugar_count = newValue;
+                    screen.update();
+                }
             }
             
             break;
@@ -215,19 +226,16 @@ void buttons() {
             screen.setInfo("#", 15);
 
             // Go to the normal mode
-            if(l_button.hold() && r_button.hold()){
+            if(l_button.hold() && r_button.hold() && millis() - menu_delay_timer_2 > 1000){
                 isEdited = false;
+                menu_delay_timer_1 = millis();
                 currentMode = normalMode; // Change mode
                 screen.update();
                 break;
             }
             
-//            static unsigned long press_button_delay = 0;
-//            static unsigned long water_pump_start_time = 0;
-//            static unsigned long sugar_dispenser_start_time = 0;
-//            
-//            screen.setHeader(_S, _e, _t, _empty);
-//            screen.setMessage(_C, _empty, _empty, _8);
+            static unsigned long water_pump_start_time = 0;
+            static unsigned long sugar_dispenser_start_time = 0;
 //
 //            // Add some delay
 //            if(millis() - menu_delay_timer_2 <= 1000) {
