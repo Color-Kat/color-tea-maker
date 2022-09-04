@@ -76,6 +76,8 @@ void loop() {
 }
 
 void buttons() {
+    static boolean isEdited = false;
+  
     // Every second update info on LCD screen to display current temp
     static unsigned long updateTempTimer = millis();
     if(millis() - updateTempTimer > 1000) {
@@ -95,24 +97,25 @@ void buttons() {
                 cups_count + String("Круж")
             );
 
+            // Update screen info for first painting
             static boolean isUpdated = false;
             if(!isUpdated){
                 screen.update();
                 isUpdated = true;
             }
 
-            Serial.println("Normal");
-
             // Go to the setting mode
             if(l_button.hold() && r_button.hold()){
                 Serial.println("hold");
+                isEdited = false;
                 currentMode = settingsMode; // Change mode
                 screen.update();
                 break;
             }
         
-            // Change temp by button
+            // Go to the next menu item
             if (l_button.click()) {
+                isEdited = false;
                 currentMode = cupsMode;
                 screen.update();
                 break;
@@ -120,54 +123,78 @@ void buttons() {
                 
             break;
 
+        /* --- Set cups count --- */        
         case cupsMode:
             screen.setHeader("Кружки");
             screen.setInfo("", 15);
-            screen.setMessage("2");
+            screen.setMessage(String(cups_count) + String("шт."));
 
             // Change temp by button
             if (l_button.click()) {
+                isEdited = false;
                 currentMode = tempMode;
                 screen.update();
                 break;
             }
-          
-            // Change number of sugar spoons by button
-            if (r_button.click()) {
-                
-                break;
+
+            // Switch edit mode
+            if (r_button.click())
+                isEdited = !isEdited;
+
+            if(isEdited){
+                lcd.setCursor(4, 1); // For blink
+                int newValue = potentRange(1, 2); // Get value from potentiometer
+
+                // Update screen data
+                if(newValue != cups_count) {
+                    cups_count = newValue;
+                    screen.update();
+                }
             }
             
             break;
 
+        /* --- Set temperature --- */         
         case tempMode:
             screen.setHeader("Температура");
             screen.setInfo("", 15);
-            screen.setMessage("25");
+            screen.setMessage(String(tea_temp) + String("°C"));
 
             // Change temp by button
             if (l_button.click()) {
+                isEdited = false;
                 currentMode = sugarMode;
                 screen.update();
                 
                 break;
             }
           
-            // Change number of sugar spoons by button
-            if (r_button.click()) {
-                
-                break;
+            // Switch edit mode
+            if (r_button.click())
+                isEdited = !isEdited;
+
+            if(isEdited){
+                lcd.setCursor(5, 1); // For blink
+                int newValue = potentRange(20, 100); // Get value from potentiometer
+
+                // Update screen data
+                if(newValue != tea_temp) {
+                    tea_temp = newValue;
+                    screen.update();
+                }
             }
             
             break;
 
+       /* --- Set spoons count --- */   
        case sugarMode:
             screen.setHeader("Сахар");
             screen.setInfo("", 15);
             screen.setMessage("2 ложки");
-            Serial.println("Sugar");
+            
             // Change temp by button
             if (l_button.click()) {
+                isEdited = false;
                 currentMode = normalMode;
                 screen.update();
                 break;
@@ -184,11 +211,12 @@ void buttons() {
         // --- Settings Mode --- //
         case settingsMode:
             screen.setHeader("Настройки");
-            screen.setMessage("2 ложки");
-            screen.setInfo("*", 14);
+            screen.setMessage("Дозатор сахара");
+            screen.setInfo("#", 15);
 
             // Go to the normal mode
             if(l_button.hold() && r_button.hold()){
+                isEdited = false;
                 currentMode = normalMode; // Change mode
                 screen.update();
                 break;
@@ -242,6 +270,9 @@ void buttons() {
         case brewingMode:
             break;
     }
+
+    if(isEdited) screen.blink();
+    else screen.noBlink();
 }
 
 /**
@@ -264,7 +295,10 @@ void getTemperature(){
 
 int potentRange(int min, int max) {
     int value = analogRead(potent_pin);
-    value = map(value, 0, 1023, min, max);
+    Serial.println(value);
+    return map(value, 0, 1024, min, max + 1);
+    
+    value = map(value, 0, 1024, min, max + 1);
     value = constrain(value, min, max);
     return value;
 }

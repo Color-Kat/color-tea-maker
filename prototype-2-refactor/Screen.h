@@ -43,7 +43,6 @@ public:
         } 
         
         if(_updateInfo) {
-            Serial.println(_info);
             _lcd->setCursor(_infoCursor, 0);
             _lcd->print(_info);
             _updateInfo = false;
@@ -61,6 +60,14 @@ public:
 
     void setMessage(String message) {
         _message = message;
+    }
+
+    void blink(){
+        _lcd->blink();
+    }
+
+    void noBlink(){
+        _lcd->noBlink();
     }
 
 private:
