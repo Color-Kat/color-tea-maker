@@ -8,6 +8,7 @@ public:
     {
         _lcd = lcd;
         _update = true;
+        _updateInfo = true;
     }
 
     void init() {
@@ -21,11 +22,16 @@ public:
 
     void update() {
         _update = true;
+         _updateTimer = millis();
+    }
+
+    void updateInfo() {
+        _updateInfo = true;
     }
  
     void render()
     {
-        if(_update) {
+        if(millis() - _updateTimer > 50 && _update) {
           _lcd->clear();
           _lcd->setCursor(0, 0);
           _lcd->print(_header);
@@ -34,11 +40,23 @@ public:
           _lcd->print(_message);
 
           _update = false;
+        } 
+        
+        if(_updateInfo) {
+            Serial.println(_info);
+            _lcd->setCursor(_infoCursor, 0);
+            _lcd->print(_info);
+            _updateInfo = false;
         }
     }
 
     void setHeader(String header) {
         _header = header;
+    }
+
+     void setInfo(String info, byte cursor) {
+        _info = info;
+        _infoCursor = cursor;
     }
 
     void setMessage(String message) {
@@ -48,11 +66,12 @@ public:
 private:
     LCD_1602_RUS *_lcd;
     boolean _update;
-//    bool _prev_state;
-//    bool _state;
-//    unsigned long _header_timer;
-//    unsigned long _info_timer;
-      String _message;
-      String _header;
-//    byte _info[4];
+    boolean _updateInfo;
+
+    unsigned long _updateTimer;
+    
+    String _message;
+    String _header;
+    String _info;
+    unsigned int _infoCursor;
 };

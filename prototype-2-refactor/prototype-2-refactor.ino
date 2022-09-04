@@ -1,4 +1,5 @@
 #include <EncButton.h> // For buttons
+#include <microDS18B20.h> // For thermometer DS18b20
 #include "Screen.h"
 
 /* --- PINS --- */
@@ -12,6 +13,9 @@
 #define l_button_pin 11      // Left button
 #define r_button_pin 12      // Right button
 #define potent_pin A3       // Potentiometer pin for set int values
+
+// Connect thermometer DS18b20
+MicroDS18B20<termometr_pin> ds; 
 
 /* --- Buttons --- */
 EncButton<EB_TICK, l_button_pin> l_button; 
@@ -37,7 +41,7 @@ modes currentMode = normalMode;
 
 // Current values
 int current_temp = 25; // Current temperature
-int tea_temp = 27; // Desired temperature
+int tea_temp = 75; // Desired temperature
 int sugar_count = 2; // Number of spoons of sugar
 int cups_count = 1; // Number of cups
 
@@ -55,7 +59,8 @@ void setup()
 //    pinMode(mixer_pin, OUTPUT);
 
     screen.init();
-    screen.update();
+//    screen.update();
+//    screen.updateInfo();
 }
 
 void loop() {
@@ -64,36 +69,52 @@ void loop() {
 
     screen.render();
 
+    getTemperature(); // Temperature
     buttons();
 //    Serial.println(potentRange(0, 4));
 //    delay(50);
 }
 
 void buttons() {
-
-    Serial.println(currentMode);
+    // Every second update info on LCD screen to display current temp
+    static unsigned long updateTempTimer = millis();
+    if(millis() - updateTempTimer > 1000) {
+        screen.updateInfo();
+        updateTempTimer = millis();
+    }
 
     switch (currentMode) {
         // --- Normal Mode --- //
         case normalMode:
-            screen.setHeader(String("     Чай: (") + current_temp + String("°C)"));
+//            screen.setHeader(String("     Чай: (") + current_temp + String("°C)"));
+            screen.setHeader("     Чай:");
+            screen.setInfo(String("(") + current_temp + String("°C)"), 10);
             screen.setMessage(
-              tea_temp + String("°C  ") +
-              sugar_count + String("Л   ") +
-              cups_count + String("Круж")
+                tea_temp + String("°C  ") +
+                sugar_count + String("Л   ") +
+                cups_count + String("Круж")
             );
+
+            static boolean isUpdated = false;
+            if(!isUpdated){
+                screen.update();
+                isUpdated = true;
+            }
+
+            Serial.println("Normal");
 
             // Go to the setting mode
             if(l_button.hold() && r_button.hold()){
-                screen.update();
+                Serial.println("hold");
                 currentMode = settingsMode; // Change mode
+                screen.update();
                 break;
             }
         
             // Change temp by button
             if (l_button.click()) {
-                screen.update();
                 currentMode = cupsMode;
+                screen.update();
                 break;
             }
                 
@@ -101,12 +122,13 @@ void buttons() {
 
         case cupsMode:
             screen.setHeader("Кружки");
+            screen.setInfo("", 15);
             screen.setMessage("2");
 
             // Change temp by button
             if (l_button.click()) {
-                screen.update();
                 currentMode = tempMode;
+                screen.update();
                 break;
             }
           
@@ -120,12 +142,13 @@ void buttons() {
 
         case tempMode:
             screen.setHeader("Температура");
+            screen.setInfo("", 15);
             screen.setMessage("25");
 
             // Change temp by button
             if (l_button.click()) {
-                screen.update();
                 currentMode = sugarMode;
+                screen.update();
                 
                 break;
             }
@@ -140,12 +163,13 @@ void buttons() {
 
        case sugarMode:
             screen.setHeader("Сахар");
+            screen.setInfo("", 15);
             screen.setMessage("2 ложки");
-
+            Serial.println("Sugar");
             // Change temp by button
             if (l_button.click()) {
-                screen.update();
                 currentMode = normalMode;
+                screen.update();
                 break;
             }
           
@@ -161,6 +185,15 @@ void buttons() {
         case settingsMode:
             screen.setHeader("Настройки");
             screen.setMessage("2 ложки");
+            screen.setInfo("*", 14);
+
+            // Go to the normal mode
+            if(l_button.hold() && r_button.hold()){
+                currentMode = normalMode; // Change mode
+                screen.update();
+                break;
+            }
+            
 //            static unsigned long press_button_delay = 0;
 //            static unsigned long water_pump_start_time = 0;
 //            static unsigned long sugar_dispenser_start_time = 0;
@@ -208,6 +241,24 @@ void buttons() {
         // --- Brewing Mode --- //
         case brewingMode:
             break;
+    }
+}
+
+/**
+ * Every second get new value of the temperature
+ */
+void getTemperature(){
+    ds.requestTemp();
+    if(ds.readTemp()) current_temp = ds.getTemp();
+  
+    static unsigned long last_temp_request = 0;
+    if(millis() - last_temp_request > 1000) {
+        last_temp_request = millis();
+        if(ds.readTemp())
+            current_temp = ds.getTemp();
+      
+        ds.requestTemp();
+        Serial.println(current_temp);
     }
 }
 

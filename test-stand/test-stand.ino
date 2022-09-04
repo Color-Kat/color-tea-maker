@@ -118,7 +118,7 @@ void loop()
   
      buttons(); // Buttons actions
   
-     getTemperature(); // Temperature=
+     getTemperature(); // Temperature
     
      // Stages of making tea 
      if(currentMode == brewingMode)
