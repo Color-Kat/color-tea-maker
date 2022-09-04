@@ -1,4 +1,4 @@
-
+#include <EncButton.h> // For buttons
 
 /* --- PINS --- */
 #define kettle_relay_pin 4   // Relay of kettle
@@ -12,22 +12,37 @@
 #define sugar_button_pin 11  // Button for change number of sugar spoons
 #define start_button_pin 10  // Button for start brewing tea
 
+/* --- Buttons --- */
+EncButton<EB_TICK, sugar_button_pin> sugar_button; 
+
+#define _LCD_TYPE 1
+#include <LCD_1602_RUS_ALL.h> // For lcd display
+LCD_1602_RUS lcd(0x27, 16, 2);
+
 void setup()
 {
     Serial.begin(9600);
-    Serial.println(123);
 
-    pinMode(sugar_button_pin, INPUT);
+    lcd.init();
+    lcd.backlight();
+    lcd.setCursor(0, 0);
+    lcd.print("Чай машина OC");
+    lcd.setCursor(4, 1);
+    lcd.print("Loading...");
 
+//    pinMode(sugar_button_pin, INPUT);
+    sugar_button.setButtonLevel(HIGH);
     pinMode(mixer_pin, OUTPUT);
 }
 
 void loop() {
-    boolean isActive = digitalRead(sugar_button_pin);
+    sugar_button.tick();
+//    boolean isActive = digitalRead(sugar_button_pin);
 
-    if(isActive) {
+    if(sugar_button.hold()) {
+      Serial.println("click");
         digitalWrite(mixer_pin, HIGH);
     } else {
-      digitalWrite(mixer_pin, LOW);
+        digitalWrite(mixer_pin, LOW);
     }
 }
