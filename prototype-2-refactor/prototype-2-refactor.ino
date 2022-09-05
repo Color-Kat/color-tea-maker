@@ -1,5 +1,6 @@
 #include <EncButton.h> // For buttons
 #include <microDS18B20.h> // For thermometer DS18b20
+#include <EEPROM.h> // For EEPROM memory to save settings
 #include "Screen.h"
 
 /* --- PINS --- */
@@ -13,20 +14,27 @@
 #define l_button_pin 11      // Left button
 #define r_button_pin 12      // Right button
 #define potent_pin A3       // Potentiometer pin for set int values
+/* --- PINS --- */
 
+#define INIT_ADDR 1023  // EEPROM addres for init key
+#define INIT_KEY 1      // EEPROM init key
+
+/* --- Initialize objects --- */
 // Connect thermometer DS18b20
 MicroDS18B20<termometr_pin> ds; 
 
-/* --- Buttons --- */
+// Buttons
 EncButton<EB_TICK, l_button_pin> l_button; 
 EncButton<EB_TICK, r_button_pin> r_button; 
 
+// LCD Display
 #define _LCD_TYPE 1
-#include <LCD_1602_RUS_ALL.h> // For lcd display
+#include <LCD_1602_RUS_ALL.h>
 LCD_1602_RUS lcd(0x27, 16, 2);
+Screen screen(&lcd); // Create screen object instance for convient work with lcd display
+/* --- Initialize objects --- */
 
-Screen screen(&lcd);
-
+/* --- Initial values --- */
 // --- Modes of tea machine --- //
 enum modes {
     normalMode,
@@ -39,11 +47,22 @@ enum modes {
 };
 modes currentMode = normalMode;
 
+// Default settings
+struct Settings{
+    int cups_count_default = 2;
+    int tea_temp_default = 75;
+    int sugar_count_default = 2;
+    int cup_pump_time = 11 * 1000;
+    int sugar_spoon_time = 4 * 1000;
+    int mixer_time = 5 * 1000;
+} settings;
+
 // Current values
 int current_temp = 25; // Current temperature
 int tea_temp = 75; // Desired temperature
 int sugar_count = 2; // Number of spoons of sugar
 int cups_count = 1; // Number of cups
+/* --- Initial values --- */
 
 void setup()
 {
@@ -61,6 +80,17 @@ void setup()
     screen.init();
 //    screen.update();
 //    screen.updateInfo();
+
+    // Init EEPROM
+    if (EEPROM.read(INIT_ADDR) != INIT_KEY) {
+        // EEPROM haven't been initialized yet
+        EEPROM.write(INIT_ADDR, INIT_KEY); // Write init key
+        EEPROM.put(0, settings); // Set default data
+    }
+
+    // Read settings
+    EEPROM.get(0, settings);
+    Serial.println(settings.tea_temp_default);
 }
 
 void loop() {
@@ -176,7 +206,7 @@ void buttons() {
                 isEdited = !isEdited;
 
             if(isEdited){
-                lcd.setCursor(5, 1); // For blink
+                lcd.setCursor(4, 1); // For blink
                 int newValue = potentRange(20, 100); // Get value from potentiometer
 
                 // Update screen data
