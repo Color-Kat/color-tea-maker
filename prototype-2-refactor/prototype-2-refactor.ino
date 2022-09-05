@@ -49,7 +49,7 @@ modes currentMode = normalMode;
 
 // Default settings
 struct Settings{
-    int cups_count_default = 2;
+    int cups_count_default = 1;
     int tea_temp_default = 75;
     int sugar_count_default = 2;
     int cup_pump_time = 11 * 1000;
@@ -251,9 +251,43 @@ void buttons() {
             
         // --- Settings Mode --- //
         case settingsMode:
+            static const byte settingsCount = 5;
+            static String settingsModeMessages[settingsCount] = {
+                "->            OK",
+                String("Кол-во ч/л: ") + settings.sugar_count_default,
+                String("Температура:")  + settings.sugar_count_default,
+                "Set sugar time",
+                "Set pump time",
+            };
+
+            enum settingModes {
+                start,
+                sugar_count_default,
+                tea_temp_default,
+                set_sugar_time,
+                set_pup_time
+            };
+            static settingModes currentSettingMode = start;
+        
             screen.setHeader("Настройки");
-            screen.setMessage("Дозатор сахара");
+            screen.setMessage(settingsModeMessages[currentSettingMode]);
             screen.setInfo("#", 15);
+
+            if(l_button.click()) {
+                currentSettingMode = currentSettingMode == settingsCount-1 ? 0 : currentSettingMode + 1;
+                screen.update();
+            }
+            
+            if(r_button.click())
+                isEdited = !isEdited;
+
+            if (currentSettingMode == sugar_count_default && isEdited) {
+                int newValue = potentRange(0, 4); // Get value from potentiometer
+
+                settings.sugar_count_default = newValue;
+                screen.update();
+                Serial.println(settings.sugar_count_default);
+            }
 
             // Go to the normal mode
             if(l_button.hold() && r_button.hold() && millis() - menu_delay_timer_2 > 1000){
@@ -264,8 +298,8 @@ void buttons() {
                 break;
             }
             
-            static unsigned long water_pump_start_time = 0;
-            static unsigned long sugar_dispenser_start_time = 0;
+//            static unsigned long water_pump_start_time = 0;
+//            static unsigned long sugar_dispenser_start_time = 0;
 //
 //            // Add some delay
 //            if(millis() - menu_delay_timer_2 <= 1000) {
@@ -273,14 +307,6 @@ void buttons() {
 //                sugar_dispenser_start_time = millis();
 //                press_button_delay = 0;
 //                break; 
-//            }
-//
-//            // Go to the normal mode
-//            if(temp_button.hold() && sugar_button.hold()){
-//                menu_delay_timer_1 = millis();  // Set delay between menu modes
-//                currentMode = normalMode;       // Change mode
-//                screen.updateState();           // Update header on display
-//                break;
 //            }
 //
 //            changeWaterPumpTime(water_pump_start_time);
