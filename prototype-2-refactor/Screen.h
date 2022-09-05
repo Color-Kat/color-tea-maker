@@ -6,9 +6,11 @@ class Screen
 public:
     Screen(LCD_1602_RUS *lcd)
     {
+        Serial.begin(9600);
         _lcd = lcd;
         _update = true;
         _updateInfo = true;
+        _isOverlap = false;
     }
 
     void init() {
@@ -37,7 +39,9 @@ public:
           _lcd->print(_header);
   
           _lcd->setCursor(0, 1);
-          _lcd->print(_message);
+          Serial.println(_isOverlap);
+          if(!_isOverlap) _lcd->print(_message); // Display the main message
+          else _lcd->print(_overlapMessage);     // Display the overlap message
 
           _update = false;
         } 
@@ -62,6 +66,10 @@ public:
         _message = message;
     }
 
+    void setOverlapMessage(String message) {
+        _overlapMessage = message;
+    }
+
     void blink(){
         _lcd->blink();
     }
@@ -70,14 +78,21 @@ public:
         _lcd->noBlink();
     }
 
+    // Show/hide the overlap message over the main message
+    void setOverlap(boolean overlap){
+        _isOverlap = overlap;
+    }
+
 private:
     LCD_1602_RUS *_lcd;
     boolean _update;
     boolean _updateInfo;
-
     unsigned long _updateTimer;
+
+    boolean _isOverlap;
     
     String _message;
+    String _overlapMessage;
     String _header;
     String _info;
     unsigned int _infoCursor;

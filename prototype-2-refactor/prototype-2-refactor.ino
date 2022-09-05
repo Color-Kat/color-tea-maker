@@ -255,7 +255,7 @@ void buttons() {
             static String settingsModeMessages[settingsCount] = {
                 "->            OK",
                 String("Кол-во ч/л: ") + settings.sugar_count_default,
-                String("Температура:")  + settings.sugar_count_default,
+                String("Температура: ") + settings.tea_temp_default,
                 "Set sugar time",
                 "Set pump time",
             };
@@ -278,15 +278,21 @@ void buttons() {
                 screen.update();
             }
             
-            if(r_button.click())
+            if(r_button.click()) {
                 isEdited = !isEdited;
+                screen.setOverlap(isEdited);
+                screen.update();
+            }
 
             if (currentSettingMode == sugar_count_default && isEdited) {
+                lcd.setCursor(5, 1);
                 int newValue = potentRange(0, 4); // Get value from potentiometer
 
-                settings.sugar_count_default = newValue;
-                screen.update();
-                Serial.println(settings.sugar_count_default);
+                if(settings.sugar_count_default != newValue){
+                    settings.sugar_count_default = newValue;
+                    screen.setOverlapMessage(String(newValue) + String(" шт."));
+                    screen.update();
+                }
             }
 
             // Go to the normal mode
@@ -297,20 +303,6 @@ void buttons() {
                 screen.update();
                 break;
             }
-            
-//            static unsigned long water_pump_start_time = 0;
-//            static unsigned long sugar_dispenser_start_time = 0;
-//
-//            // Add some delay
-//            if(millis() - menu_delay_timer_2 <= 1000) {
-//                water_pump_start_time = millis();
-//                sugar_dispenser_start_time = millis();
-//                press_button_delay = 0;
-//                break; 
-//            }
-//
-//            changeWaterPumpTime(water_pump_start_time);
-//            changeSugarDispenserTime(sugar_dispenser_start_time);
             
             break; 
 
@@ -359,10 +351,5 @@ void getTemperature(){
 
 int potentRange(int min, int max) {
     int value = analogRead(potent_pin);
-    Serial.println(value);
     return map(value, 0, 1024, min, max + 1);
-    
-    value = map(value, 0, 1024, min, max + 1);
-    value = constrain(value, min, max);
-    return value;
 }
