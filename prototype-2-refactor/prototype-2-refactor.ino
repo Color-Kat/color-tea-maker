@@ -100,9 +100,8 @@ void loop() {
     screen.render();
 
     getTemperature(); // Temperature
+    
     buttons();
-//    Serial.println(potentRange(0, 4));
-//    delay(50);
 }
 
 void buttons() {
@@ -120,7 +119,6 @@ void buttons() {
     switch (currentMode) {
         // --- Normal Mode --- //
         case normalMode:
-//            screen.setHeader(String("     Чай: (") + current_temp + String("°C)"));
             screen.setHeader("     Чай:");
             screen.setInfo(String("(") + current_temp + String("°C)"), 10);
             screen.setMessage(
@@ -273,17 +271,21 @@ void buttons() {
             screen.setMessage(settingsModeMessages[currentSettingMode]);
             screen.setInfo("#", 15);
 
+            // Go to the next settings menu item
             if(l_button.click()) {
                 currentSettingMode = currentSettingMode == settingsCount-1 ? 0 : currentSettingMode + 1;
+                isEdited = false;
                 screen.update();
             }
-            
+
+            // Go to the edit mode
             if(r_button.click()) {
                 isEdited = !isEdited;
                 screen.setOverlap(isEdited);
                 screen.update();
             }
 
+            // Change default sugar count
             if (currentSettingMode == sugar_count_default && isEdited) {
                 lcd.setCursor(5, 1);
                 int newValue = potentRange(0, 4); // Get value from potentiometer
@@ -291,6 +293,18 @@ void buttons() {
                 if(settings.sugar_count_default != newValue){
                     settings.sugar_count_default = newValue;
                     screen.setOverlapMessage(String(newValue) + String(" шт."));
+                    screen.update();
+                }
+            }
+
+            // Change default tea temperature
+            if (currentSettingMode == tea_temp_default && isEdited) {
+                lcd.setCursor(4, 1);
+                int newValue = potentRange(20, 100); // Get value from potentiometer
+
+                if(settings.tea_temp_default != newValue){
+                    settings.tea_temp_default = newValue;
+                    screen.setOverlapMessage(String(newValue) + String("°C"));
                     screen.update();
                 }
             }
