@@ -88,9 +88,10 @@ void setup()
         EEPROM.put(0, settings); // Set default data
     }
 
-    // Read settings
+    // Read settings and apply it
     EEPROM.get(0, settings);
-    Serial.println(settings.tea_temp_default);
+    tea_temp = settings.tea_temp_default;       
+    sugar_count = settings.sugar_count_default; 
 }
 
 void loop() {
@@ -283,6 +284,8 @@ void buttons() {
                 isEdited = !isEdited;
                 screen.setOverlap(isEdited);
                 screen.update();
+
+                if(!isEdited) EEPROM.put(0, settings);
             }
 
             // Change default sugar count
