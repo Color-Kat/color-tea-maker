@@ -298,7 +298,7 @@ void buttons() {
 
                 if(!isEdited) {
                     EEPROM.put(0, settings);
-                    Serial.println();
+                    Serial.println(settings.sugar_spoon_time);
                 }
             }
 
@@ -332,19 +332,44 @@ void buttons() {
             if (currentSettingMode == set_sugar_time && isEdited) {
                 screen.setHeader("Sugar time");
                 screen.setOverlapMessage("Hold right");
+                lcd.setCursor(10, 1);
 
                 static unsigned long sugar_dispenser_start_time = millis();
                 if(r_button.hold()) {
-                    lcd.setCursor(4, 1);
+                    lcd.setCursor(2, 1);
     
                     settings.sugar_spoon_time = millis() - sugar_dispenser_start_time;
     
                     int sugar_dispenser_secs = (millis() - sugar_dispenser_start_time) / 1000;
                     screen.setOverlapMessage(String(sugar_dispenser_secs) + 's');
-                } else sugar_dispenser_start_time = millis();
-                
-                if(millis() - screenUpdateTimer > 500) {
-                    screenUpdateTimer=millis();
+                } else sugar_dispenser_start_time = millis(); // Before hold set start time
+
+                // Update data every 500ms
+                if(millis() - screenUpdateTimer > 1000) {
+                    screenUpdateTimer = millis();
+                    screen.update();
+                }
+            }
+
+            // Change water pump time
+            if (currentSettingMode == set_pump_time && isEdited) {
+                screen.setHeader("Pump time");
+                screen.setOverlapMessage("Hold right");
+                lcd.setCursor(10, 1);
+
+                static unsigned long pump_start_time = millis();
+                if(r_button.hold()) {
+                    lcd.setCursor(2, 1);
+    
+                    settings.cup_pump_time = millis() - pump_start_time;
+    
+                    int pump_secs = (millis() - pump_start_time) / 1000;
+                    screen.setOverlapMessage(String(pump_secs) + 's');
+                } else pump_start_time = millis(); // Before hold set start time
+
+                // Update data every 500ms
+                if(millis() - screenUpdateTimer > 1000) {
+                    screenUpdateTimer = millis();
                     screen.update();
                 }
             }
