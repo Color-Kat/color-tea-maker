@@ -282,14 +282,24 @@ void buttons() {
             // Go to the edit mode
             if(r_button.click()) {
                 isEdited = !isEdited;
+
+                // No edit mode in start screen
+                if(currentSettingMode == start) isEdited = false;
+
+                // Display overlap message
                 screen.setOverlap(isEdited);
                 screen.update();
 
                 if(!isEdited) EEPROM.put(0, settings);
+
+               
             }
+
+            
 
             // Change default sugar count
             if (currentSettingMode == sugar_count_default && isEdited) {
+                screen.setHeader("Ч/л сахара");
                 lcd.setCursor(5, 1);
                 int newValue = potentRange(0, 4); // Get value from potentiometer
 
@@ -302,6 +312,7 @@ void buttons() {
 
             // Change default tea temperature
             if (currentSettingMode == tea_temp_default && isEdited) {
+                screen.setHeader("Температура");
                 lcd.setCursor(4, 1);
                 int newValue = potentRange(20, 100); // Get value from potentiometer
 
