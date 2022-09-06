@@ -24,7 +24,7 @@ public:
 
     void update() {
         _update = true;
-         _updateTimer = millis();
+        _updateTimer = millis();
     }
 
     void updateInfo() {
@@ -39,7 +39,6 @@ public:
           _lcd->print(_header);
   
           _lcd->setCursor(0, 1);
-          Serial.println(_isOverlap);
           if(!_isOverlap) _lcd->print(_message); // Display the main message
           else _lcd->print(_overlapMessage);     // Display the overlap message
 

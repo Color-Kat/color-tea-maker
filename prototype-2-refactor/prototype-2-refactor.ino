@@ -94,6 +94,8 @@ void setup()
     sugar_count = settings.sugar_count_default; 
 }
 
+unsigned long screenUpdateTimer = 0;
+
 void loop() {
     l_button.tick();
     r_button.tick();
@@ -264,7 +266,7 @@ void buttons() {
                 sugar_count_default,
                 tea_temp_default,
                 set_sugar_time,
-                set_pup_time
+                set_pump_time
             };
             static settingModes currentSettingMode = start;
         
@@ -276,6 +278,7 @@ void buttons() {
             if(l_button.click()) {
                 currentSettingMode = currentSettingMode == settingsCount-1 ? 0 : currentSettingMode + 1;
                 isEdited = false;
+                screen.setOverlap(false);
                 screen.update();
             }
 
@@ -286,16 +289,18 @@ void buttons() {
                 // No edit mode in start screen
                 if(currentSettingMode == start) isEdited = false;
 
+                settingsModeMessages[1] = String("Кол-во ч/л: ") + settings.sugar_count_default;
+                settingsModeMessages[2] = String("Температура: ") + settings.tea_temp_default;
+
                 // Display overlap message
                 screen.setOverlap(isEdited);
                 screen.update();
 
-                if(!isEdited) EEPROM.put(0, settings);
-
-               
+                if(!isEdited) {
+                    EEPROM.put(0, settings);
+                    Serial.println();
+                }
             }
-
-            
 
             // Change default sugar count
             if (currentSettingMode == sugar_count_default && isEdited) {
@@ -323,9 +328,33 @@ void buttons() {
                 }
             }
 
+            // Change sugar dispenser time
+            if (currentSettingMode == set_sugar_time && isEdited) {
+                screen.setHeader("Sugar time");
+                screen.setOverlapMessage("Hold right");
+
+                static unsigned long sugar_dispenser_start_time = millis();
+                if(r_button.hold()) {
+                    lcd.setCursor(4, 1);
+    
+                    settings.sugar_spoon_time = millis() - sugar_dispenser_start_time;
+    
+                    int sugar_dispenser_secs = (millis() - sugar_dispenser_start_time) / 1000;
+                    screen.setOverlapMessage(String(sugar_dispenser_secs) + 's');
+                } else sugar_dispenser_start_time = millis();
+                
+                if(millis() - screenUpdateTimer > 500) {
+                    screenUpdateTimer=millis();
+                    screen.update();
+                }
+            }
+
+
             // Go to the normal mode
             if(l_button.hold() && r_button.hold() && millis() - menu_delay_timer_2 > 1000){
                 isEdited = false;
+                screen.setOverlap(false);
+                
                 menu_delay_timer_1 = millis();
                 currentMode = normalMode; // Change mode
                 screen.update();
