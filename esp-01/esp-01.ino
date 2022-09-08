@@ -20,14 +20,12 @@
 //////////////////////////////////////////////
 
 // определение режима соединения и подключение библиотеки RemoteXY 
-#define REMOTEXY_MODE__ESP8266_SOFTSERIAL_POINT
-#include <SoftwareSerial.h>
+#define REMOTEXY_MODE__ESP8266_HARDSERIAL_POINT
 
 #include <RemoteXY.h>
 
 // настройки соединения 
-#define REMOTEXY_SERIAL_RX 2
-#define REMOTEXY_SERIAL_TX 3
+#define REMOTEXY_SERIAL Serial
 #define REMOTEXY_SERIAL_SPEED 9600
 #define REMOTEXY_WIFI_SSID "TeaMaker"
 #define REMOTEXY_WIFI_PASSWORD "12345678"

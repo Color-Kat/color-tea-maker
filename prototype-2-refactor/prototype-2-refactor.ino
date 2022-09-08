@@ -4,16 +4,15 @@
 #include "Screen.h"
 
 /* --- PINS --- */
-#define kettle_relay_pin 4   // Relay of kettle
-#define termometr_pin A2     // Relay of kettle
-#define hot_pump_pin 5       // Hot water
-#define motor_pin_1 2        // Sugar dispenser
-#define motor_pin_2 3        // Sugar dispenser
-#define mixer_pin A1         // Mixer pin
+#define kettle_relay_pin 4     // Relay of kettle
+#define termometr_pin A2       // Relay of kettle
+#define hot_pump_pin 5         // Hot water
+#define sugar_dispenser_pin 6  // Sugar dispenser
+#define mixer_pin A1           // Mixer pin
 
 #define l_button_pin 11      // Left button
 #define r_button_pin 12      // Right button
-#define potent_pin A3       // Potentiometer pin for set int values
+#define potent_pin A3        // Potentiometer pin for set int values
 /* --- PINS --- */
 
 #define INIT_ADDR 1023  // EEPROM addres for init key
@@ -70,16 +69,26 @@ void setup()
 
     r_button.setButtonLevel(HIGH);
     l_button.setButtonLevel(HIGH);
+    pinMode(potent_pin, INPUT);
 
     // Thermometer
     pinMode(termometr_pin, INPUT);
 
-    pinMode(potent_pin, INPUT);
-//    pinMode(mixer_pin, OUTPUT);
+    // Kettle
+    pinMode(kettle_relay_pin, OUTPUT);
+    digitalWrite(kettle_relay_pin, LOW);
+    
+    // Pump
+    pinMode(hot_pump_pin, OUTPUT);
+    digitalWrite(hot_pump_pin, LOW);
 
-    screen.init();
-//    screen.update();
-//    screen.updateInfo();
+    // Mixer
+    pinMode(mixer_pin, OUTPUT);
+    digitalWrite(mixer_pin, LOW);
+
+    // Sugar dispenser motor
+    pinMode(sugar_dispenser_pin, OUTPUT);
+    digitalWrite(sugar_dispenser_pin, LOW);
 
     // Init EEPROM
     if (EEPROM.read(INIT_ADDR) != INIT_KEY) {
@@ -92,6 +101,9 @@ void setup()
     EEPROM.get(0, settings);
     tea_temp = settings.tea_temp_default;       
     sugar_count = settings.sugar_count_default; 
+
+    // Init display
+    screen.init();
 }
 
 unsigned long screenUpdateTimer = 0;
@@ -105,6 +117,10 @@ void loop() {
     getTemperature(); // Temperature
     
     buttons();
+
+   // Stages of making tea 
+   if(currentMode == brewingMode)
+      teaProcess();
 }
 
 void buttons() {
@@ -144,6 +160,12 @@ void buttons() {
                 currentMode = settingsMode; // Change mode
                 screen.update();
                 break;
+            }
+
+            // Start making tea
+            if(l_button.hold()) {
+                currentMode = brewingMode;
+                screen.update();
             }
         
             // Go to the next menu item
@@ -434,4 +456,137 @@ void getTemperature(){
 int potentRange(int min, int max) {
     int value = analogRead(potent_pin);
     return map(value, 0, 1024, min, max + 1);
+}
+
+/**
+ * Control the stages of making tea:
+ * - Kettle
+ * - Water pump
+ * - Sugar dispenser
+ * - Mixer
+ */
+void teaProcess(){
+    static uint8_t stage = 0;
+    static long timer = millis();
+
+    // Stop making tea by start button click
+    if(r_button.click()){
+        stage = 4;
+        screen.update();
+        timer = millis();
+        digitalWrite(kettle_relay_pin, LOW);
+    }
+
+    
+    
+    switch (stage) {
+      // Kettle
+      case 0:
+        Serial.println("Чайник включён");
+        digitalWrite(kettle_relay_pin, HIGH);
+
+        screen.setHeader("Нагрев");
+        screen.setMessage("Ожидайте");
+
+        if(current_temp >= tea_temp){
+            stage++;
+            screen.update();
+            timer = millis();
+            digitalWrite(kettle_relay_pin, LOW);
+        }
+        
+        break;
+
+      // Pump
+      case 1:
+        Serial.println("Помпа включена");
+
+        screen.setHeader("Наполнение");
+
+        digitalWrite(hot_pump_pin, HIGH);
+
+        if(millis() - timer > settings.cup_pump_time * cups_count) {
+            stage++;
+            screen.update();
+            timer = millis();
+            digitalWrite(hot_pump_pin, LOW);
+        }
+        
+        break;
+
+      // Turn on the mixer for prepare the spn for sugar dosing
+      case 2:
+        Serial.println("Включаем мешалку");
+
+        screen.setHeader("Перемешивание");
+
+        digitalWrite(mixer_pin, HIGH);
+
+        // Start spining for 4.5 seconds
+        if(millis() - timer > 4500) {
+            stage++;
+            screen.update();
+            timer = millis();
+        }
+        
+        break;
+
+      // Sugar
+      case 3: {
+          Serial.println("Дозатор сахара включён");
+
+          // --- No sugar --- //
+          // Skip stage if there is no sugar
+          if(sugar_count == 0) {
+              // And wait the mixer time ends for tea withou mixing sugar 
+              if(millis() - timer > 15000) {
+                  stage++;
+                  screen.update();
+                  timer = millis();
+                  digitalWrite(mixer_pin, LOW);
+              }
+              
+              break;
+          }
+
+          // --- Dispense sugar --- //
+          // Get total dispense time
+          unsigned long totalTime = settings.sugar_spoon_time * sugar_count;
+
+          // Display current count of sugar
+//          if(millis() - timer < totalTime)
+//              screen.setMessage(int((float)(millis() - timer + 300) / totalTime * sugar_count) , _c);
+  
+          // Turn on the sugar dispenser
+          digitalWrite(sugar_dispenser_pin, HIGH);
+  
+          // Go to the next stage after end of dosing sugar and end of mixing tea
+          if(millis() - timer > totalTime) {
+              static unsigned long mixer_timer = millis();
+
+              // Stop sugar dosing
+              digitalWrite(sugar_dispenser_pin, LOW);
+
+              if(millis() - mixer_timer > 5000) {
+                  timer = millis();
+                  stage++;
+                  screen.update();
+                  digitalWrite(mixer_pin, LOW); // Stop mixer
+              }
+          }
+      }
+        
+      break;
+
+      // Tea is done
+      case 4:
+          screen.setHeader("Чай готов!");
+          screen.update();
+          currentMode = normalMode;
+          stage = 0;
+          break;
+
+      default:
+          break;
+    }
 }
