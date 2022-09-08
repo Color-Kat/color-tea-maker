@@ -163,7 +163,7 @@ void buttons() {
             }
 
             // Start making tea
-            if(l_button.hold()) {
+            if(r_button.hold()) {
                 currentMode = brewingMode;
                 screen.update();
             }
@@ -476,26 +476,33 @@ void teaProcess(){
         timer = millis();
         digitalWrite(kettle_relay_pin, LOW);
     }
-
-    
     
     switch (stage) {
       // Kettle
-      case 0:
+      case 0: {
         Serial.println("Чайник включён");
-        digitalWrite(kettle_relay_pin, HIGH);
+//        digitalWrite(kettle_relay_pin, HIGH);
 
         screen.setHeader("Нагрев");
-        screen.setMessage("Ожидайте");
+        screen.setInfo(String("(") + current_temp + String("°C)"), 10);
+        screen.setMessage("Ожидайте...");
+
+        // Every second update current temp on display
+        static unsigned long updateTempTimer = millis();
+        if(millis() - updateTempTimer > 1000) {
+            screen.updateInfo();
+            updateTempTimer = millis();
+        }
 
         if(current_temp >= tea_temp){
             stage++;
             screen.update();
             timer = millis();
-            digitalWrite(kettle_relay_pin, LOW);
+//            digitalWrite(kettle_relay_pin, LOW);
         }
         
         break;
+      }
 
       // Pump
       case 1:
@@ -503,13 +510,13 @@ void teaProcess(){
 
         screen.setHeader("Наполнение");
 
-        digitalWrite(hot_pump_pin, HIGH);
+//        digitalWrite(hot_pump_pin, HIGH);
 
         if(millis() - timer > settings.cup_pump_time * cups_count) {
             stage++;
             screen.update();
             timer = millis();
-            digitalWrite(hot_pump_pin, LOW);
+//            digitalWrite(hot_pump_pin, LOW);
         }
         
         break;
@@ -518,9 +525,9 @@ void teaProcess(){
       case 2:
         Serial.println("Включаем мешалку");
 
-        screen.setHeader("Перемешивание");
+        screen.setHeader("Наполнено");
 
-        digitalWrite(mixer_pin, HIGH);
+//        digitalWrite(mixer_pin, HIGH);
 
         // Start spining for 4.5 seconds
         if(millis() - timer > 4500) {
@@ -541,9 +548,10 @@ void teaProcess(){
               // And wait the mixer time ends for tea withou mixing sugar 
               if(millis() - timer > 15000) {
                   stage++;
+                  screen.setInfo("", 15);
                   screen.update();
                   timer = millis();
-                  digitalWrite(mixer_pin, LOW);
+//                  digitalWrite(mixer_pin, LOW);
               }
               
               break;
@@ -553,25 +561,34 @@ void teaProcess(){
           // Get total dispense time
           unsigned long totalTime = settings.sugar_spoon_time * sugar_count;
 
+          screen.setHeader("");
+
           // Display current count of sugar
-//          if(millis() - timer < totalTime)
-//              screen.setMessage(int((float)(millis() - timer + 300) / totalTime * sugar_count) , _c);
+          if(millis() - timer < totalTime)
+              screen.setInfo(String(int((float)(millis() - timer + 300) / totalTime * sugar_count)) + String("ч/л"), 0);
+
+          // Every second update current sugar count
+          static unsigned long updateSugarCountTimer = millis();
+          if(millis() - updateSugarCountTimer > 1000) {
+              screen.updateInfo();
+              updateSugarCountTimer = millis();
+          }
   
           // Turn on the sugar dispenser
-          digitalWrite(sugar_dispenser_pin, HIGH);
+//          digitalWrite(sugar_dispenser_pin, HIGH);
   
           // Go to the next stage after end of dosing sugar and end of mixing tea
           if(millis() - timer > totalTime) {
               static unsigned long mixer_timer = millis();
 
               // Stop sugar dosing
-              digitalWrite(sugar_dispenser_pin, LOW);
+//              digitalWrite(sugar_dispenser_pin, LOW);
 
               if(millis() - mixer_timer > 5000) {
                   timer = millis();
                   stage++;
                   screen.update();
-                  digitalWrite(mixer_pin, LOW); // Stop mixer
+//                  digitalWrite(mixer_pin, LOW); // Stop mixer
               }
           }
       }
@@ -580,10 +597,13 @@ void teaProcess(){
 
       // Tea is done
       case 4:
-          screen.setHeader("Чай готов!");
-          screen.update();
-          currentMode = normalMode;
-          stage = 0;
+          screen.setHeader("Готово!");
+
+          if(l_button.click()) {
+              screen.update();
+              currentMode = normalMode;
+              stage = 0;
+          }
           break;
 
       default:
