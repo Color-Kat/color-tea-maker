@@ -113,23 +113,25 @@ void loop() {
     l_button.tick();
     r_button.tick();
 
-    screen.render();
+    screen.render(); // Always render information on display
 
     getTemperature(); // Temperature
     
-    buttons();
+    menuControl();
 
     // Stages of making tea 
     if(currentMode == brewingMode)
         teaProcess();
 
     // Boil new raw water
-    if(currentMode == boilingMode) {
+    if(currentMode == boilingMode)
         boil();
-    }
 }
 
-void buttons() {
+/**
+ * Work with buttons and menu navigation
+ */
+void menuControl() {
     static boolean isEdited = false; // If true, it's edit mode
     static unsigned long menu_delay_timer_1 = millis(); // Delay when change settings and normal mode
     static unsigned long menu_delay_timer_2 = millis(); // Delay when change settings and normal mode
@@ -144,8 +146,9 @@ void buttons() {
     switch (currentMode) {
         // --- Normal Mode --- //
         case normalMode:
+            // Main screen with main params of tea
             screen.setHeader("     Чай:");
-            screen.setInfo(String("(") + current_temp + String("°C)"), 10);
+            screen.setInfo(String("(") + current_temp + String("°C)"), 10); // Display (current temp)
             screen.setMessage(
                 tea_temp + String("°C  ") +
                 sugar_count + String("Л   ") +
@@ -161,9 +164,9 @@ void buttons() {
 
             // Go to the setting mode
             if(l_button.hold() && r_button.hold() && millis() - menu_delay_timer_1 > 1000){
-                isEdited = false;
-                menu_delay_timer_2 = millis();
-                currentMode = settingsMode; // Change mode
+                isEdited = false;              // Switch off edit mode
+                menu_delay_timer_2 = millis(); // Set delay from start change menu mode
+                currentMode = settingsMode;    // Change mode
                 screen.update();
                 break;
             }
@@ -184,9 +187,9 @@ void buttons() {
         
             // Go to the next menu item
             if (l_button.click()) {
-                isEdited = false;
-                currentMode = cupsMode;
-                screen.update();
+                isEdited = false;       // Switch off edit mode
+                currentMode = cupsMode; // Next mode is cups mode settings
+                screen.update();        // Update info in advance
                 break;
             }
                 
@@ -194,13 +197,14 @@ void buttons() {
 
         // --- Set cups count --- //   
         case cupsMode:
+            // Display cups mode menu text
             screen.setHeader("Кружки");
-            screen.setInfo("", 15);
-            screen.setMessage(String(cups_count) + String("шт."));
+            screen.setInfo("", 15);                                 // Clear info message
+            screen.setMessage(String(cups_count) + String("шт."));  // Display count of cups
 
-            // Change temp by button
+            // Go to the change tea temperature menu page
             if (l_button.click()) {
-                isEdited = false;
+                isEdited = false; // Switch off edit mode
                 currentMode = tempMode;
                 screen.update();
                 break;
@@ -210,8 +214,9 @@ void buttons() {
             if (r_button.click())
                 isEdited = !isEdited;
 
+            // Update data (cups count) on lcd in edit mode
             if(isEdited){
-                lcd.setCursor(4, 1); // For blink
+                lcd.setCursor(4, 1);              // For blink
                 int newValue = potentRange(1, 2); // Get value from potentiometer
 
                 // Update screen data
@@ -223,15 +228,16 @@ void buttons() {
             
             break;
 
-       // --- Set tea temperature--- //     
+        // --- Set tea temperature--- //     
         case tempMode:
+            // Main tea temp menu page text
             screen.setHeader("Температура");
-            screen.setInfo("", 15);
-            screen.setMessage(String(tea_temp) + String("°C"));
+            screen.setInfo("", 15);                             // Clear info message
+            screen.setMessage(String(tea_temp) + String("°C")); // Current tea temp
 
             // Change temp by button
             if (l_button.click()) {
-                isEdited = false;
+                isEdited = false; // Switch off edit mode
                 currentMode = sugarMode;
                 screen.update();
                 
@@ -242,8 +248,9 @@ void buttons() {
             if (r_button.click())
                 isEdited = !isEdited;
 
+            // Update tea temp on lcd display in edit mode
             if(isEdited){
-                lcd.setCursor(4, 1); // For blink
+                lcd.setCursor(4, 1);                 // For blink
                 int newValue = potentRange(20, 100); // Get value from potentiometer
 
                 // Update screen data
@@ -255,15 +262,16 @@ void buttons() {
             
             break;
 
-      // --- Set spoons count --- //
+       // --- Set spoons count --- //
        case sugarMode:
+            // Spoons count menu page main text
             screen.setHeader("Сахар");
-            screen.setInfo("", 15);
-            screen.setMessage(sugar_count + String(" ч/л"));
+            screen.setInfo("", 15);                          // Clear info message
+            screen.setMessage(sugar_count + String(" ч/л")); // Dispaly current count of sugar
             
             // Change temp by button
             if (l_button.click()) {
-                isEdited = false;
+                isEdited = false; // Switch off edit mode
                 currentMode = normalMode;
                 screen.update();
                 break;
@@ -273,8 +281,9 @@ void buttons() {
             if (r_button.click())
                 isEdited = !isEdited;
 
+            // Update and display on lcd screen new sugar spoons count
             if(isEdited){
-                lcd.setCursor(5, 1); // For blink
+                lcd.setCursor(5, 1);              // For blink
                 int newValue = potentRange(0, 4); // Get value from potentiometer
 
                 // Update screen data
@@ -288,6 +297,7 @@ void buttons() {
             
         // --- Settings Mode --- //
         case settingsMode:
+            // It's array of settings menu pages headers
             static const byte settingsCount = 5;
             static String settingsModeMessages[settingsCount] = {
                 "->            OK",
@@ -297,6 +307,7 @@ void buttons() {
                 "Set pump time",
             };
 
+            // Enum of settings menu pages (modes)
             enum settingModes {
                 start,
                 sugar_count_default,
@@ -304,8 +315,10 @@ void buttons() {
                 set_sugar_time,
                 set_pump_time
             };
+            // Current setting page
             static settingModes currentSettingMode = start;
-        
+
+            // Screen main screen text
             screen.setHeader("Настройки");
             screen.setMessage(settingsModeMessages[currentSettingMode]);
             screen.setInfo("#", 15);
@@ -313,25 +326,27 @@ void buttons() {
             // Go to the next settings menu item
             if(l_button.click()) {
                 currentSettingMode = currentSettingMode == settingsCount-1 ? 0 : currentSettingMode + 1;
-                isEdited = false;
-                screen.setOverlap(false);
+                isEdited = false; // Switch off edit mode
+                screen.setOverlap(false); // Overlap is used for display new value in edit mode
                 screen.update();
             }
 
             // Go to the edit mode
             if(r_button.click()) {
-                isEdited = !isEdited;
+                isEdited = !isEdited; // Switch edit mode
 
                 // No edit mode in start screen
                 if(currentSettingMode == start) isEdited = false;
 
+                // When switch edit mode, update current data from settings on display
                 settingsModeMessages[1] = String("Кол-во ч/л: ") + settings.sugar_count_default;
                 settingsModeMessages[2] = String("Температура: ") + settings.tea_temp_default;
 
                 // Display overlap message
-                screen.setOverlap(isEdited);
+                screen.setOverlap(isEdited); // Overlap message by new value in edit mode
                 screen.update();
-
+                
+                // Update settings data in EEPROM when switch edit mode off
                 if(!isEdited) {
                     EEPROM.put(0, settings);
                     Serial.println(settings.sugar_spoon_time);
@@ -340,47 +355,51 @@ void buttons() {
 
             // Change default sugar count
             if (currentSettingMode == sugar_count_default && isEdited) {
-                screen.setHeader("Ч/л сахара");
-                lcd.setCursor(5, 1);
+                screen.setHeader("Ч/л сахара");   // Change header on screen
+                lcd.setCursor(5, 1);              // For blink
                 int newValue = potentRange(0, 4); // Get value from potentiometer
 
+                // Update only when value changed (screen.update can be used at least once every 50ms)
                 if(settings.sugar_count_default != newValue){
-                    settings.sugar_count_default = newValue;
-                    screen.setOverlapMessage(String(newValue) + String(" шт."));
+                    settings.sugar_count_default = newValue;                     // Change local settings data
+                    screen.setOverlapMessage(String(newValue) + String(" шт.")); // Set new data in overlap message
                     screen.update();
                 }
             }
 
             // Change default tea temperature
             if (currentSettingMode == tea_temp_default && isEdited) {
-                screen.setHeader("Температура");
-                lcd.setCursor(4, 1);
+                screen.setHeader("Температура");     // Update header
+                lcd.setCursor(4, 1);                 // For blink
                 int newValue = potentRange(20, 100); // Get value from potentiometer
 
+                // Update only when value changed
                 if(settings.tea_temp_default != newValue){
-                    settings.tea_temp_default = newValue;
-                    screen.setOverlapMessage(String(newValue) + String("°C"));
+                    settings.tea_temp_default = newValue;                       // Change local settings data
+                    screen.setOverlapMessage(String(newValue) + String("°C"));  // Set new data in overlap message
                     screen.update();
                 }
             }
 
             // Change sugar dispenser time
             if (currentSettingMode == set_sugar_time && isEdited) {
-                screen.setHeader("Sugar time");
-                screen.setOverlapMessage("Hold right");
-                lcd.setCursor(10, 1);
+                screen.setHeader("Sugar time");         // Change header
+                screen.setOverlapMessage("Hold right"); // Add a hint by overlap
+                lcd.setCursor(10, 1);                   // For blink
 
+                // By hold turn on the sugar dispenser
+                // And count time of work of dispenser, save it to settings.
+                // It's time of work dispenser for getting one spoon of sugar
                 static unsigned long sugar_dispenser_start_time = millis();
                 if(r_button.hold()) {
-                    lcd.setCursor(2, 1);
-    
-                    settings.sugar_spoon_time = millis() - sugar_dispenser_start_time;
-    
-                    int sugar_dispenser_secs = (millis() - sugar_dispenser_start_time) / 1000;
-                    screen.setOverlapMessage(String(sugar_dispenser_secs) + 's');
-                } else sugar_dispenser_start_time = millis(); // Before hold set start time
+                    lcd.setCursor(2, 1); // Blink cursor position
 
-                // Update data every 500ms
+                    settings.sugar_spoon_time = millis() - sugar_dispenser_start_time;         // Work time in ms
+                    int sugar_dispenser_secs = (millis() - sugar_dispenser_start_time) / 1000; // Work time in secs
+                    screen.setOverlapMessage(String(sugar_dispenser_secs) + 's');              // Display work time in secs
+                } else sugar_dispenser_start_time = millis();                                  // Before hold set start time
+
+                // Update data every second
                 if(millis() - screenUpdateTimer > 1000) {
                     screenUpdateTimer = millis();
                     screen.update();
@@ -389,19 +408,21 @@ void buttons() {
 
             // Change water pump time
             if (currentSettingMode == set_pump_time && isEdited) {
-                screen.setHeader("Pump time");
-                screen.setOverlapMessage("Hold right");
-                lcd.setCursor(10, 1);
+                screen.setHeader("Pump time");          // Change header
+                screen.setOverlapMessage("Hold right"); // Add a hint by overlap
+                lcd.setCursor(10, 1);                   // For blink
 
+                // By hold turn the water pump on
+                // And count time of work of pump, save it to settings.
+                // It's time of work pump for getting one cup of water
                 static unsigned long pump_start_time = millis();
                 if(r_button.hold()) {
-                    lcd.setCursor(2, 1);
+                    lcd.setCursor(2, 1);  // Blink cursor position
     
-                    settings.cup_pump_time = millis() - pump_start_time;
-    
-                    int pump_secs = (millis() - pump_start_time) / 1000;
-                    screen.setOverlapMessage(String(pump_secs) + 's');
-                } else pump_start_time = millis(); // Before hold set start time
+                    settings.cup_pump_time = millis() - pump_start_time; // Work time in ms
+                    int pump_secs = (millis() - pump_start_time) / 1000; // Work time in secs
+                    screen.setOverlapMessage(String(pump_secs) + 's');   // Display work time in secs
+                } else pump_start_time = millis();                       // Before hold set start time
 
                 // Update data every 500ms
                 if(millis() - screenUpdateTimer > 1000) {
@@ -411,13 +432,13 @@ void buttons() {
             }
 
 
-            // Go to the normal mode
+            // Go to the normal mode by hold two buttons
             if(l_button.hold() && r_button.hold() && millis() - menu_delay_timer_2 > 1000){
-                isEdited = false;
-                screen.setOverlap(false);
+                isEdited = false;         // Switch off edit mode
+                screen.setOverlap(false); // Remove overlap
                 
-                menu_delay_timer_1 = millis();
-                currentMode = normalMode; // Change mode
+                menu_delay_timer_1 = millis(); // Update delay menu timer
+                currentMode = normalMode;      // Change mode
                 screen.update();
                 break;
             }
@@ -429,6 +450,7 @@ void buttons() {
             break;
     }
 
+    // Add blink on display when edit mode is on
     if(isEdited) screen.blink();
     else screen.noBlink();
 }
@@ -451,8 +473,8 @@ void getTemperature(){
 }
 
 int potentRange(int min, int max) {
-    int value = analogRead(potent_pin);
-    return map(value, 0, 1024, min, max + 1);
+    int value = analogRead(potent_pin);       // Get value from potent
+    return map(value, 0, 1024, min, max + 1); // Cut it from min to max
 }
 
 /**
@@ -463,22 +485,20 @@ int potentRange(int min, int max) {
  * - Mixer
  */
 void teaProcess(){
-    static uint8_t stage = 0;
-    static long timer = millis();
+    static uint8_t stage = 0;     // Current brewing stage
+    static long timer = millis(); // For delays in stages
 
     // Stop making tea by start button click
     if(r_button.click() && stage != 4){
-        stage = 4;
+        stage = 4 // Go to the last stage
         screen.update();
         timer = millis();
-        digitalWrite(kettle_relay_pin, LOW);
     }
     
     switch (stage) {
       // Kettle
       case 0: {
-        Serial.println("Чайник включён");
-//        digitalWrite(kettle_relay_pin, HIGH);
+        digitalWrite(kettle_relay_pin, HIGH);
 
         screen.setHeader("Нагрев");
         screen.setInfo(String("(") + current_temp + String("°C)"), 10);
@@ -491,13 +511,14 @@ void teaProcess(){
             updateTempTimer = millis();
         }
 
+        // Go to the next stage when the desired temperature has been reached
         if(current_temp >= tea_temp){
             stage++;
             screen.setInfo("", 15); // Clear ingo message (current water temp)
             screen.update();
             screen.updateInfo();
             timer = millis();
-//            digitalWrite(kettle_relay_pin, LOW);
+            digitalWrite(kettle_relay_pin, LOW);
         }
         
         break;
@@ -505,28 +526,25 @@ void teaProcess(){
 
       // Pump
       case 1:
-        Serial.println("Помпа включена");
-
         screen.setHeader("Наполнение");
 
-//        digitalWrite(hot_pump_pin, HIGH);
+        digitalWrite(hot_pump_pin, HIGH); // Turn the pump on
 
+        // Wait for end of timer of one cup time * cups count
         if(millis() - timer > settings.cup_pump_time * cups_count) {
             stage++;
             screen.update();
             timer = millis();
-//            digitalWrite(hot_pump_pin, LOW);
+            digitalWrite(hot_pump_pin, LOW);
         }
         
         break;
 
       // Turn on the mixer for prepare the spn for sugar dosing
       case 2:
-        Serial.println("Включаем мешалку");
-
         screen.setHeader("Наполнено");
 
-//        digitalWrite(mixer_pin, HIGH);
+        digitalWrite(mixer_pin, HIGH);
 
         // Start spining for 2.5 seconds
         if(millis() - timer > 2500) {
@@ -539,8 +557,6 @@ void teaProcess(){
 
       // Sugar
       case 3: {
-          Serial.println("Дозатор сахара включён");
-
           // --- No sugar --- //
           // Skip stage if there is no sugar
           if(sugar_count == 0) {
@@ -549,7 +565,7 @@ void teaProcess(){
                   stage++;
                   screen.update();
                   timer = millis();
-//                  digitalWrite(mixer_pin, LOW);
+                  digitalWrite(mixer_pin, LOW);
               }
               
               break;
@@ -575,14 +591,14 @@ void teaProcess(){
           }
   
           // Turn on the sugar dispenser
-//          digitalWrite(sugar_dispenser_pin, HIGH);
+          digitalWrite(sugar_dispenser_pin, HIGH);
   
           // Go to the next stage after end of dosing sugar and end of mixing tea
           if(millis() - timer > totalTime) {
               static unsigned long mixer_timer = millis();
 
               // Stop sugar dosing
-//              digitalWrite(sugar_dispenser_pin, LOW);
+              digitalWrite(sugar_dispenser_pin, LOW);
 
               if(millis() - mixer_timer > settings.mixer_time) {
                   timer = millis();
@@ -590,7 +606,7 @@ void teaProcess(){
                   screen.setInfo("", 15);
                   screen.update();
                   screen.updateInfo();
-//                  digitalWrite(mixer_pin, LOW); // Stop mixer
+                  digitalWrite(mixer_pin, LOW); // Stop mixer
               }
           }
       }
@@ -599,6 +615,7 @@ void teaProcess(){
 
       // Tea is done
       case 4:
+          // End message on screen
           screen.setHeader("Готово!");
           screen.setMessage("OK");
 
@@ -608,6 +625,7 @@ void teaProcess(){
           digitalWrite(hot_pump_pin, LOW);
           digitalWrite(sugar_dispenser_pin, LOW);
 
+          // Return to normal mode by click left button
           if(l_button.click()) {
               screen.update();
               currentMode = normalMode;
@@ -640,7 +658,7 @@ void boil(){
     }
   
     // Switch off the kettle when the temperature is riched
-    if(current_temp >= 32) {
+    if(current_temp >= 95) {
         digitalWrite(kettle_relay_pin, LOW); // Switch off the kettle
         currentMode = normalMode;            // Change mode
         screen.update();                     // Update header on display
