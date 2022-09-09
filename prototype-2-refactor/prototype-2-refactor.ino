@@ -163,7 +163,7 @@ void buttons() {
             }
 
             // Start making tea
-            if(r_button.hold()) {
+            if(r_button.hold() && millis() - menu_delay_timer_1 > 1000) {
                 currentMode = brewingMode;
                 screen.update();
             }
@@ -496,7 +496,9 @@ void teaProcess(){
 
         if(current_temp >= tea_temp){
             stage++;
+            screen.setInfo("", 15); // Clear ingo message (current water temp)
             screen.update();
+            screen.updateInfo();
             timer = millis();
 //            digitalWrite(kettle_relay_pin, LOW);
         }
@@ -529,8 +531,8 @@ void teaProcess(){
 
 //        digitalWrite(mixer_pin, HIGH);
 
-        // Start spining for 4.5 seconds
-        if(millis() - timer > 4500) {
+        // Start spining for 2.5 seconds
+        if(millis() - timer > 2500) {
             stage++;
             screen.update();
             timer = millis();
@@ -546,9 +548,8 @@ void teaProcess(){
           // Skip stage if there is no sugar
           if(sugar_count == 0) {
               // And wait the mixer time ends for tea withou mixing sugar 
-              if(millis() - timer > 15000) {
+              if(millis() - timer > settings.mixer_time) {
                   stage++;
-                  screen.setInfo("", 15);
                   screen.update();
                   timer = millis();
 //                  digitalWrite(mixer_pin, LOW);
@@ -559,13 +560,15 @@ void teaProcess(){
 
           // --- Dispense sugar --- //
           // Get total dispense time
-          unsigned long totalTime = settings.sugar_spoon_time * sugar_count;
+          unsigned long totalTime = settings.sugar_spoon_time * sugar_count * cups_count;
 
           screen.setHeader("");
 
           // Display current count of sugar
           if(millis() - timer < totalTime)
-              screen.setInfo(String(int((float)(millis() - timer + 300) / totalTime * sugar_count)) + String("ч/л"), 0);
+              screen.setInfo(String("Сахар: ") +
+              String(int((float)(millis() - timer + 300) / totalTime * sugar_count * cups_count)) +
+              String("ч/л"), 0);
 
           // Every second update current sugar count
           static unsigned long updateSugarCountTimer = millis();
@@ -584,10 +587,12 @@ void teaProcess(){
               // Stop sugar dosing
 //              digitalWrite(sugar_dispenser_pin, LOW);
 
-              if(millis() - mixer_timer > 5000) {
+              if(millis() - mixer_timer > settings.mixer_time) {
                   timer = millis();
                   stage++;
+                  screen.setInfo("", 15);
                   screen.update();
+                  screen.updateInfo();
 //                  digitalWrite(mixer_pin, LOW); // Stop mixer
               }
           }
@@ -598,8 +603,15 @@ void teaProcess(){
       // Tea is done
       case 4:
           screen.setHeader("Готово!");
+          screen.setMessage("OK");
 
-          if(l_button.click()) {
+          // Disable all for sure
+          digitalWrite(kettle_relay_pin, LOW);
+          digitalWrite(mixer_pin, LOW);
+          digitalWrite(hot_pump_pin, LOW);
+          digitalWrite(sugar_dispenser_pin, LOW);
+
+          if(l_button.click() || r_button.click()) {
               screen.update();
               currentMode = normalMode;
               stage = 0;
