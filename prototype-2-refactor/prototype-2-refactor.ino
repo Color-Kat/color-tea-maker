@@ -397,7 +397,12 @@ void menuControl() {
                     settings.sugar_spoon_time = millis() - sugar_dispenser_start_time;         // Work time in ms
                     int sugar_dispenser_secs = (millis() - sugar_dispenser_start_time) / 1000; // Work time in secs
                     screen.setOverlapMessage(String(sugar_dispenser_secs) + 's');              // Display work time in secs
-                } else sugar_dispenser_start_time = millis();                                  // Before hold set start time
+
+                    digitalWrite(sugar_dispenser_pin, HIGH);
+                } else {
+                    sugar_dispenser_start_time = millis(); // Before hold set start time
+                    digitalWrite(sugar_dispenser_pin, LOW);
+                }
 
                 // Update data every second
                 if(millis() - screenUpdateTimer > 1000) {
@@ -422,7 +427,12 @@ void menuControl() {
                     settings.cup_pump_time = millis() - pump_start_time; // Work time in ms
                     int pump_secs = (millis() - pump_start_time) / 1000; // Work time in secs
                     screen.setOverlapMessage(String(pump_secs) + 's');   // Display work time in secs
-                } else pump_start_time = millis();                       // Before hold set start time
+
+                    digitalWrite(hot_pump_pin, HIGH);
+                } else {
+                    pump_start_time = millis(); // Before hold set start time
+                    digitalWrite(hot_pump_pin, LOW);
+                }
 
                 // Update data every 500ms
                 if(millis() - screenUpdateTimer > 1000) {
@@ -490,7 +500,7 @@ void teaProcess(){
 
     // Stop making tea by start button click
     if(r_button.click() && stage != 4){
-        stage = 4 // Go to the last stage
+        stage = 4; // Go to the last stage
         screen.update();
         timer = millis();
     }
