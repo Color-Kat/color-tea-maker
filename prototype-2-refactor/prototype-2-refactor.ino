@@ -53,7 +53,7 @@ struct Settings{
     int sugar_count_default = 2;
     int cup_pump_time = 11 * 1000;
     int sugar_spoon_time = 4 * 1000;
-    int mixer_time = 5 * 1000;
+    int mixer_time = 15 * 1000;
 } settings;
 
 // Current values
@@ -67,6 +67,7 @@ void setup()
 {
     Serial.begin(9600);
 
+    // Buttons and potentiometer
     r_button.setButtonLevel(HIGH);
     l_button.setButtonLevel(HIGH);
     pinMode(potent_pin, INPUT);
@@ -118,15 +119,20 @@ void loop() {
     
     buttons();
 
-   // Stages of making tea 
-   if(currentMode == brewingMode)
-      teaProcess();
+    // Stages of making tea 
+    if(currentMode == brewingMode)
+        teaProcess();
+
+    // Boil new raw water
+    if(currentMode == boilingMode) {
+        boil();
+    }
 }
 
 void buttons() {
-    static boolean isEdited = false;
-    static unsigned long menu_delay_timer_1 = millis();
-    static unsigned long menu_delay_timer_2 = millis();
+    static boolean isEdited = false; // If true, it's edit mode
+    static unsigned long menu_delay_timer_1 = millis(); // Delay when change settings and normal mode
+    static unsigned long menu_delay_timer_2 = millis(); // Delay when change settings and normal mode
   
     // Every second update info on LCD screen to display current temp
     static unsigned long updateTempTimer = millis();
@@ -166,6 +172,14 @@ void buttons() {
             if(r_button.hold() && millis() - menu_delay_timer_1 > 1000) {
                 currentMode = brewingMode;
                 screen.update();
+                break;
+            }
+
+             // Start making tea
+            if(l_button.hold() && millis() - menu_delay_timer_1 > 1000) {
+                currentMode = boilingMode;
+                screen.update();
+                break;
             }
         
             // Go to the next menu item
@@ -178,7 +192,7 @@ void buttons() {
                 
             break;
 
-        /* --- Set cups count --- */        
+        // --- Set cups count --- //   
         case cupsMode:
             screen.setHeader("Кружки");
             screen.setInfo("", 15);
@@ -209,7 +223,7 @@ void buttons() {
             
             break;
 
-        /* --- Set temperature --- */         
+       // --- Set tea temperature--- //     
         case tempMode:
             screen.setHeader("Температура");
             screen.setInfo("", 15);
@@ -241,7 +255,7 @@ void buttons() {
             
             break;
 
-       /* --- Set spoons count --- */   
+      // --- Set spoons count --- //
        case sugarMode:
             screen.setHeader("Сахар");
             screen.setInfo("", 15);
@@ -410,22 +424,6 @@ void buttons() {
             
             break; 
 
-        // --- Boiling Mode --- //
-        case boilingMode:
-           
-
-            // Switch off the kettle when the temperature is riched
-//            if(current_temp >= 95) {
-//                digitalWrite(kettle_relay_pin, LOW); // Switch off the kettle
-//                currentMode = normalMode;            // Change mode
-//                screen.updateState();                // Update header on display
-//                break;
-//            }
-//
-//            digitalWrite(kettle_relay_pin, HIGH);
-        
-            break;
-
         // --- Brewing Mode --- //
         case brewingMode:
             break;
@@ -449,7 +447,6 @@ void getTemperature(){
             current_temp = ds.getTemp();
       
         ds.requestTemp();
-        Serial.println(current_temp);
     }
 }
 
@@ -470,7 +467,7 @@ void teaProcess(){
     static long timer = millis();
 
     // Stop making tea by start button click
-    if(r_button.click()){
+    if(r_button.click() && stage != 4){
         stage = 4;
         screen.update();
         timer = millis();
@@ -611,7 +608,7 @@ void teaProcess(){
           digitalWrite(hot_pump_pin, LOW);
           digitalWrite(sugar_dispenser_pin, LOW);
 
-          if(l_button.click() || r_button.click()) {
+          if(l_button.click()) {
               screen.update();
               currentMode = normalMode;
               stage = 0;
@@ -621,4 +618,34 @@ void teaProcess(){
       default:
           break;
     }
+}
+
+void boil(){
+    screen.setHeader("Кипячение");
+    screen.setInfo(String("(") + current_temp + String("°C)"), 10);
+    screen.setMessage("СТОП");
+
+    // Every second update info on LCD screen to display current temp
+    static unsigned long updateTempTimer = millis();
+    if(millis() - updateTempTimer > 1000) {
+        screen.updateInfo();
+        updateTempTimer = millis();
+    }
+
+    if(l_button.click()) {
+        screen.update();
+        currentMode = normalMode;
+        digitalWrite(kettle_relay_pin, LOW);
+        return;
+    }
+  
+    // Switch off the kettle when the temperature is riched
+    if(current_temp >= 32) {
+        digitalWrite(kettle_relay_pin, LOW); // Switch off the kettle
+        currentMode = normalMode;            // Change mode
+        screen.update();                     // Update header on display
+        return;
+    }
+    
+//    digitalWrite(kettle_relay_pin, HIGH);
 }
