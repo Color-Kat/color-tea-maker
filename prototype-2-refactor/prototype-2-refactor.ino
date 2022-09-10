@@ -1,6 +1,7 @@
-#include <EncButton.h> // For buttons
-#include <microDS18B20.h> // For thermometer DS18b20
-#include <EEPROM.h> // For EEPROM memory to save settings
+#include <EncButton.h>     // For buttons
+#include <microDS18B20.h>  // For thermometer DS18b20
+#include <EEPROM.h>        // For EEPROM memory to save settings
+#include <ezBuzzer.h>      // For buzzer
 #include "Screen.h"
 
 /* --- PINS --- */
@@ -9,7 +10,7 @@
 #define hot_pump_pin 5         // Hot water
 #define sugar_dispenser_pin 6  // Sugar dispenser
 #define mixer_pin A1           // Mixer pin
-#define buzzer_pin 9            // Buzzer pin
+#define buzzer_pin 9           // Buzzer pin
 
 #define l_button_pin 11      // Left button
 #define r_button_pin 12      // Right button
@@ -22,6 +23,8 @@
 /* --- Initialize objects --- */
 // Connect thermometer DS18b20
 MicroDS18B20<termometr_pin> ds; 
+
+ezBuzzer buzzer(buzzer_pin); // create ezBuzzer object that attach to a pin;
 
 // Buttons
 EncButton<EB_TICK, l_button_pin> l_button; 
@@ -114,7 +117,7 @@ void setup()
 unsigned long screenUpdateTimer = 0;
 
 void loop() {
-    tone(buzzer_pin, 1000, 1000);
+    buzzer.loop();
   
     l_button.tick();
     r_button.tick();
@@ -169,25 +172,28 @@ void menuControl() {
             }
 
             // Go to the setting mode
-            if(l_button.hold() && r_button.hold() && millis() - menu_delay_timer_1 > 1000){
+            if(l_button.hold() && r_button.hold() && millis() - menu_delay_timer_1 > 900){
                 isEdited = false;              // Switch off edit mode
                 menu_delay_timer_2 = millis(); // Set delay from start change menu mode
                 currentMode = settingsMode;    // Change mode
                 screen.update();
+                changeSound();
                 break;
             }
 
             // Start making tea
-            if(r_button.hold() && millis() - menu_delay_timer_1 > 1000) {
+            if(r_button.hold() && !l_button.state() && millis() - menu_delay_timer_1 > 1100) {
                 currentMode = brewingMode;
                 screen.update();
+                changeSound();
                 break;
             }
 
-             // Start making tea
-            if(l_button.hold() && millis() - menu_delay_timer_1 > 1000) {
+            // Start boil water
+            if(l_button.hold() && !r_button.state() && millis() - menu_delay_timer_1 > 1100) {
                 currentMode = boilingMode;
                 screen.update();
+                changeSound();
                 break;
             }
         
@@ -196,6 +202,7 @@ void menuControl() {
                 isEdited = false;       // Switch off edit mode
                 currentMode = cupsMode; // Next mode is cups mode settings
                 screen.update();        // Update info in advance
+                clickSound();
                 break;
             }
                 
@@ -213,12 +220,15 @@ void menuControl() {
                 isEdited = false; // Switch off edit mode
                 currentMode = tempMode;
                 screen.update();
+                clickSound();
                 break;
             }
 
             // Switch edit mode
-            if (r_button.click())
+            if (r_button.click()) {
                 isEdited = !isEdited;
+                editSound();
+            }
 
             // Update data (cups count) on lcd in edit mode
             if(isEdited){
@@ -246,13 +256,16 @@ void menuControl() {
                 isEdited = false; // Switch off edit mode
                 currentMode = sugarMode;
                 screen.update();
+                clickSound();
                 
                 break;
             }
           
-            // Switch edit mode
-            if (r_button.click())
+             // Switch edit mode
+            if (r_button.click()) {
                 isEdited = !isEdited;
+                editSound();
+            }
 
             // Update tea temp on lcd display in edit mode
             if(isEdited){
@@ -280,12 +293,16 @@ void menuControl() {
                 isEdited = false; // Switch off edit mode
                 currentMode = normalMode;
                 screen.update();
+                clickSound();
+                
                 break;
             }
           
             // Switch edit mode
-            if (r_button.click())
+            if (r_button.click()) {
                 isEdited = !isEdited;
+                editSound();
+            }
 
             // Update and display on lcd screen new sugar spoons count
             if(isEdited){
@@ -335,6 +352,7 @@ void menuControl() {
                 isEdited = false; // Switch off edit mode
                 screen.setOverlap(false); // Overlap is used for display new value in edit mode
                 screen.update();
+                clickSound();
             }
 
             // Go to the edit mode
@@ -351,6 +369,8 @@ void menuControl() {
                 // Display overlap message
                 screen.setOverlap(isEdited); // Overlap message by new value in edit mode
                 screen.update();
+
+                editSound();
                 
                 // Update settings data in EEPROM when switch edit mode off
                 if(!isEdited) {
@@ -456,6 +476,7 @@ void menuControl() {
                 menu_delay_timer_1 = millis(); // Update delay menu timer
                 currentMode = normalMode;      // Change mode
                 screen.update();
+                changeSound();
                 break;
             }
             
@@ -509,12 +530,13 @@ void teaProcess(){
         stage = 4; // Go to the last stage
         screen.update();
         timer = millis();
+        changeSound();
     }
     
     switch (stage) {
       // Kettle
       case 0: {
-        digitalWrite(kettle_relay_pin, HIGH);
+//        digitalWrite(kettle_relay_pin, HIGH);
 
         screen.setHeader("Нагрев");
         screen.setInfo(String("(") + current_temp + String("°C)"), 10);
@@ -544,7 +566,7 @@ void teaProcess(){
       case 1:
         screen.setHeader("Наполнение");
 
-        digitalWrite(hot_pump_pin, HIGH); // Turn the pump on
+//        digitalWrite(hot_pump_pin, HIGH); // Turn the pump on
 
         // Wait for end of timer of one cup time * cups count
         if(millis() - timer > settings.cup_pump_time * cups_count) {
@@ -560,7 +582,7 @@ void teaProcess(){
       case 2:
         screen.setHeader("Наполнено");
 
-        digitalWrite(mixer_pin, HIGH);
+//        digitalWrite(mixer_pin, HIGH);
 
         // Start spining for 2.5 seconds
         if(millis() - timer > 2500) {
@@ -607,7 +629,7 @@ void teaProcess(){
           }
   
           // Turn on the sugar dispenser
-          digitalWrite(sugar_dispenser_pin, HIGH);
+//          digitalWrite(sugar_dispenser_pin, HIGH);
   
           // Go to the next stage after end of dosing sugar and end of mixing tea
           if(millis() - timer > totalTime) {
@@ -618,6 +640,7 @@ void teaProcess(){
 
               if(millis() - mixer_timer > settings.mixer_time) {
                   timer = millis();
+                  endMelody();
                   stage++;
                   screen.setInfo("", 15);
                   screen.update();
@@ -646,6 +669,7 @@ void teaProcess(){
               screen.update();
               currentMode = normalMode;
               stage = 0;
+              clickSound();
           }
           break;
 
@@ -670,6 +694,7 @@ void boil(){
         screen.update();
         currentMode = normalMode;
         digitalWrite(kettle_relay_pin, LOW);
+        changeSound();
         return;
     }
   
@@ -682,4 +707,38 @@ void boil(){
     }
     
 //    digitalWrite(kettle_relay_pin, HIGH);
+}
+
+int clickMelody[] = {40};
+int clickDurations[] = {8};
+void clickSound() {
+    buzzer.playMelody(clickMelody, clickDurations, 1);
+}
+
+int changeMelody[] = {150, 100};
+int changeDurations[] = {4, 8};
+void changeSound() {
+    buzzer.playMelody(changeMelody, changeDurations, 2);
+}
+
+int editMelody[] = {50, 60};
+int editDurations[] = {4, 8};
+void editSound() {
+    buzzer.playMelody(editMelody, editDurations, 2);
+}
+
+int melody[] = {
+    NOTE_DS5,NOTE_D5,NOTE_B4,NOTE_A4,NOTE_B4,
+    NOTE_E4,NOTE_G4,NOTE_DS5, NOTE_D5,NOTE_G4,NOTE_B4,
+    NOTE_B4,NOTE_FS5,NOTE_F5,NOTE_B4,
+};
+int durations[] = {
+    8,2,8,8,1,
+    8,4,8,4,8,8,
+    8,8,4,
+};
+
+void endMelody() {
+    int length = sizeof(durations) / sizeof(int);
+    buzzer.playMelody(melody, durations, length); // playing
 }
