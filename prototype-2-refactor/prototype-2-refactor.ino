@@ -9,6 +9,7 @@
 #define hot_pump_pin 5         // Hot water
 #define sugar_dispenser_pin 6  // Sugar dispenser
 #define mixer_pin A1           // Mixer pin
+#define buzzer_pin 9            // Buzzer pin
 
 #define l_button_pin 11      // Left button
 #define r_button_pin 12      // Right button
@@ -91,6 +92,9 @@ void setup()
     pinMode(sugar_dispenser_pin, OUTPUT);
     digitalWrite(sugar_dispenser_pin, LOW);
 
+    // Buzzer
+    pinMode(buzzer_pin, OUTPUT);
+
     // Init EEPROM
     if (EEPROM.read(INIT_ADDR) != INIT_KEY) {
         // EEPROM haven't been initialized yet
@@ -110,6 +114,8 @@ void setup()
 unsigned long screenUpdateTimer = 0;
 
 void loop() {
+    tone(buzzer_pin, 1000, 1000);
+  
     l_button.tick();
     r_button.tick();
 
