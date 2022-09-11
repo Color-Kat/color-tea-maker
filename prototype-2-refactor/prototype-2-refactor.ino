@@ -567,7 +567,7 @@ void teaProcess(){
       case 1:
         screen.setHeader("Наполнение");
 
-//        digitalWrite(hot_pump_pin, HIGH); // Turn the pump on
+        digitalWrite(hot_pump_pin, HIGH); // Turn the pump on
 
         // Wait for end of timer of one cup time * cups count
         if(millis() - timer > settings.cup_pump_time * cups_count) {
@@ -596,22 +596,20 @@ void teaProcess(){
 
       // Sugar
       case 3: {
+          static unsigned long fanTimer1 = millis();
+          static unsigned long fanTimer2 = millis();
+        
           // --- No sugar --- //
           // Skip stage if there is no sugar
           if(sugar_count == 0) {
-              static unsigned long fanTimer1 = millis();
-              static unsigned long fanTimer2 = millis();
-              
               if(millis() - fanTimer1 > 500 && millis() - fanTimer1 < 550) screen.update();
               if(millis() - fanTimer2 > 500 && millis() - fanTimer2 < 550) screen.update();
-
-              lcd.setCursor(6, 0);
               
               if(millis() - fanTimer1 < 500){
-                  screen.setHeader("(x)");
+                  screen.setHeader("      (x)");
                   fanTimer2 = millis();
               } else {
-                  screen.setHeader("(+)");
+                  screen.setHeader("      (+)");
 
                   if(millis() - fanTimer2 > 500){
                       fanTimer1 = millis();
@@ -654,7 +652,7 @@ void teaProcess(){
           }
   
           // Turn on the sugar dispenser
-//          digitalWrite(sugar_dispenser_pin, HIGH);
+          digitalWrite(sugar_dispenser_pin, HIGH);
   
           // Go to the next stage after end of dosing sugar and end of mixing tea
           if(millis() - timer > totalTime) {
@@ -663,7 +661,7 @@ void teaProcess(){
               // Stop sugar dosing
               digitalWrite(sugar_dispenser_pin, LOW);
 
-              if(millis() - mixer_timer > settings.mixer_time) {
+              if(millis() - mixer_timer > settings.mixer_time * cups_count) {
                   timer = millis();
                   endMelody();
                   stage++;
