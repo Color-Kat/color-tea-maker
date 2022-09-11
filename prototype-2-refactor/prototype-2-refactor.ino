@@ -109,6 +109,7 @@ void setup()
     EEPROM.get(0, settings);
     tea_temp = settings.tea_temp_default;       
     sugar_count = settings.sugar_count_default; 
+    settings.mixer_time = 15 * 1000;
 
     // Init display
     screen.init();
@@ -536,7 +537,7 @@ void teaProcess(){
     switch (stage) {
       // Kettle
       case 0: {
-//        digitalWrite(kettle_relay_pin, HIGH);
+        digitalWrite(kettle_relay_pin, HIGH);
 
         screen.setHeader("Нагрев");
         screen.setInfo(String("(") + current_temp + String("°C)"), 10);
@@ -580,28 +581,50 @@ void teaProcess(){
 
       // Turn on the mixer for prepare the spn for sugar dosing
       case 2:
-        screen.setHeader("Наполнено");
-
-//        digitalWrite(mixer_pin, HIGH);
-
-        // Start spining for 2.5 seconds
-        if(millis() - timer > 2500) {
-            stage++;
-            screen.update();
-            timer = millis();
-        }
-        
-        break;
+          screen.setHeader("Наполнено");
+  
+          digitalWrite(mixer_pin, HIGH);
+  
+          // Start spining for 2.5 seconds
+          if(millis() - timer > 2500) {
+              stage++;
+              screen.update();
+              timer = millis();
+          }
+          
+          break;
 
       // Sugar
       case 3: {
           // --- No sugar --- //
           // Skip stage if there is no sugar
           if(sugar_count == 0) {
+              static unsigned long fanTimer1 = millis();
+              static unsigned long fanTimer2 = millis();
+              
+              if(millis() - fanTimer1 > 500 && millis() - fanTimer1 < 550) screen.update();
+              if(millis() - fanTimer2 > 500 && millis() - fanTimer2 < 550) screen.update();
+
+              lcd.setCursor(6, 0);
+              
+              if(millis() - fanTimer1 < 500){
+                  screen.setHeader("(x)");
+                  fanTimer2 = millis();
+              } else {
+                  screen.setHeader("(+)");
+
+                  if(millis() - fanTimer2 > 500){
+                      fanTimer1 = millis();
+                  } 
+              }
+            
               // And wait the mixer time ends for tea withou mixing sugar 
               if(millis() - timer > settings.mixer_time) {
                   stage++;
+                  screen.setInfo("", 15);
                   screen.update();
+                  screen.updateInfo();
+                  endMelody();
                   timer = millis();
                   digitalWrite(mixer_pin, LOW);
               }
@@ -617,9 +640,11 @@ void teaProcess(){
 
           // Display current count of sugar
           if(millis() - timer < totalTime)
-              screen.setInfo(String("Сахар: ") +
-              String(int((float)(millis() - timer + 300) / totalTime * sugar_count * cups_count)) +
-              String("ч/л"), 0);
+              screen.setInfo(
+                  String("Сахар: ") +
+                  String(int((float)(millis() - timer + 300) / totalTime * sugar_count * cups_count)) +
+                  String("ч/л")
+              , 0);
 
           // Every second update current sugar count
           static unsigned long updateSugarCountTimer = millis();
@@ -706,7 +731,7 @@ void boil(){
         return;
     }
     
-//    digitalWrite(kettle_relay_pin, HIGH);
+    digitalWrite(kettle_relay_pin, HIGH);
 }
 
 int clickMelody[] = {40};
