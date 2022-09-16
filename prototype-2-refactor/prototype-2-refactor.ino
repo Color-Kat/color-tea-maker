@@ -6,10 +6,10 @@
 
 /* --- PINS --- */
 #define kettle_relay_pin 4     // Relay of kettle
-#define termometr_pin A2       // Relay of kettle
-#define hot_pump_pin 5         // Hot water
-#define sugar_dispenser_pin 6  // Sugar dispenser
-#define mixer_pin A1           // Mixer pin
+#define mixer_pin 5            // Mixer pin
+#define termometr_pin A2       // Termometer pin
+#define hot_pump_pin A0        // Hot water
+#define sugar_dispenser_pin A1 // Sugar dispenser
 #define buzzer_pin 9           // Buzzer pin
 
 #define l_button_pin 11      // Left button
