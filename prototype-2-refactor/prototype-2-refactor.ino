@@ -7,7 +7,7 @@
 /* --- PINS --- */
 #define kettle_relay_pin 4     // Relay of kettle
 #define mixer_pin 5            // Mixer pin
-#define termometr_pin A2       // Termometer pin
+#define termometer_pin A2      // Termometer pin
 #define hot_pump_pin A0        // Hot water
 #define sugar_dispenser_pin A1 // Sugar dispenser
 #define buzzer_pin 9           // Buzzer pin
@@ -22,7 +22,7 @@
 
 /* --- Initialize objects --- */
 // Connect thermometer DS18b20
-MicroDS18B20<termometr_pin> ds; 
+MicroDS18B20<termometer_pin> ds; 
 
 ezBuzzer buzzer(buzzer_pin); // create ezBuzzer object that attach to a pin;
 
@@ -77,23 +77,23 @@ void setup()
     pinMode(potent_pin, INPUT);
 
     // Thermometer
-    pinMode(termometr_pin, INPUT);
+//    pinMode(termometer_pin, INPUT);
 
     // Kettle
     pinMode(kettle_relay_pin, OUTPUT);
     digitalWrite(kettle_relay_pin, LOW);
     
     // Pump
-    pinMode(hot_pump_pin, OUTPUT);
-    digitalWrite(hot_pump_pin, LOW);
+//    pinMode(hot_pump_pin, OUTPUT);
+//    digitalWrite(hot_pump_pin, LOW);
 
     // Mixer
-    pinMode(mixer_pin, OUTPUT);
-    digitalWrite(mixer_pin, LOW);
+//    pinMode(mixer_pin, OUTPUT);
+//    digitalWrite(mixer_pin, LOW);
 
     // Sugar dispenser motor
-    pinMode(sugar_dispenser_pin, OUTPUT);
-    digitalWrite(sugar_dispenser_pin, LOW);
+//    pinMode(sugar_dispenser_pin, OUTPUT);
+//    digitalWrite(sugar_dispenser_pin, LOW);
 
     // Buzzer
     pinMode(buzzer_pin, OUTPUT);
@@ -125,7 +125,18 @@ void loop() {
 
     screen.render(); // Always render information on display
 
-    getTemperature(); // Temperature
+//    getTemperature(); // Temperature
+
+    Serial.println(ds.online());
+  
+    ds.requestTemp();
+    
+    // вместо delay используй таймер на millis(), пример async_read
+    delay(1000);
+    
+    // проверяем успешность чтения и выводим
+    if (ds.readTemp()) Serial.println(ds.getTemp());
+    else Serial.println("error");
     
     menuControl();
 
@@ -498,13 +509,18 @@ void menuControl() {
  */
 void getTemperature(){
     ds.requestTemp();
-    if(ds.readTemp()) current_temp = ds.getTemp();
+//    if(ds.readTemp()) {
+//       Serial.println(ds.getTemp());
+//      current_temp = ds.getTemp();
+//    }
   
     static unsigned long last_temp_request = 0;
     if(millis() - last_temp_request > 1000) {
         last_temp_request = millis();
-        if(ds.readTemp())
+        if(ds.readTemp()) {
+            Serial.println(ds.getTemp());
             current_temp = ds.getTemp();
+        }
       
         ds.requestTemp();
     }
