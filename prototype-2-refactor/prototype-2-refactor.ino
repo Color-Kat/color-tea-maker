@@ -5,8 +5,8 @@
 #include "Screen.h"
 
 /* --- PINS --- */
-#define kettle_relay_pin 4     // Relay of kettle
-#define mixer_pin 5            // Mixer pin
+#define kettle_relay_pin 5     // Relay of kettle
+#define mixer_pin 4            // Mixer pin
 #define termometer_pin A2      // Termometer pin
 #define hot_pump_pin A0        // Hot water
 #define sugar_dispenser_pin A1 // Sugar dispenser
@@ -84,16 +84,16 @@ void setup()
     digitalWrite(kettle_relay_pin, LOW);
     
     // Pump
-//    pinMode(hot_pump_pin, OUTPUT);
-//    digitalWrite(hot_pump_pin, LOW);
+    pinMode(hot_pump_pin, OUTPUT);
+    digitalWrite(hot_pump_pin, LOW);
 
     // Mixer
-//    pinMode(mixer_pin, OUTPUT);
-//    digitalWrite(mixer_pin, LOW);
+    pinMode(mixer_pin, OUTPUT);
+    digitalWrite(mixer_pin, LOW);
 
     // Sugar dispenser motor
-//    pinMode(sugar_dispenser_pin, OUTPUT);
-//    digitalWrite(sugar_dispenser_pin, LOW);
+    pinMode(sugar_dispenser_pin, OUTPUT);
+    digitalWrite(sugar_dispenser_pin, LOW);
 
     // Buzzer
     pinMode(buzzer_pin, OUTPUT);
@@ -125,18 +125,17 @@ void loop() {
 
     screen.render(); // Always render information on display
 
-//    getTemperature(); // Temperature
+    getTemperature(); // Temperature
 
-    Serial.println(ds.online());
-  
-    ds.requestTemp();
-    
-    // вместо delay используй таймер на millis(), пример async_read
-    delay(1000);
-    
-    // проверяем успешность чтения и выводим
-    if (ds.readTemp()) Serial.println(ds.getTemp());
-    else Serial.println("error");
+//    Serial.println(ds.online());
+//    ds.requestTemp();
+//    
+//    // вместо delay используй таймер на millis(), пример async_read
+//    delay(1000);
+//    
+//    // проверяем успешность чтения и выводим
+//    if (ds.readTemp()) Serial.println(ds.getTemp());
+//    else Serial.println("error");
     
     menuControl();
 
@@ -358,6 +357,18 @@ void menuControl() {
             screen.setMessage(settingsModeMessages[currentSettingMode]);
             screen.setInfo("#", 15);
 
+             // Go to the normal mode by hold two buttons
+            if(l_button.hold() && r_button.hold() && millis() - menu_delay_timer_2 > 1000){
+                isEdited = false;         // Switch off edit mode
+                screen.setOverlap(false); // Remove overlap
+                
+                menu_delay_timer_1 = millis(); // Update delay menu timer
+                currentMode = normalMode;      // Change mode
+                screen.update();
+                changeSound();
+                break;
+            }
+
             // Go to the next settings menu item
             if(l_button.click()) {
                 currentSettingMode = currentSettingMode == settingsCount-1 ? 0 : currentSettingMode + 1;
@@ -478,20 +489,7 @@ void menuControl() {
                     screen.update();
                 }
             }
-
-
-            // Go to the normal mode by hold two buttons
-            if(l_button.hold() && r_button.hold() && millis() - menu_delay_timer_2 > 1000){
-                isEdited = false;         // Switch off edit mode
-                screen.setOverlap(false); // Remove overlap
-                
-                menu_delay_timer_1 = millis(); // Update delay menu timer
-                currentMode = normalMode;      // Change mode
-                screen.update();
-                changeSound();
-                break;
-            }
-            
+                        
             break; 
 
         // --- Brewing Mode --- //
@@ -520,7 +518,7 @@ void getTemperature(){
         if(ds.readTemp()) {
             Serial.println(ds.getTemp());
             current_temp = ds.getTemp();
-        }
+        } else Serial.println("error");
       
         ds.requestTemp();
     }
@@ -669,11 +667,11 @@ void teaProcess(){
   
           // Turn on the sugar dispenser
           digitalWrite(sugar_dispenser_pin, HIGH);
+
+          static unsigned long mixer_timer = millis();
   
           // Go to the next stage after end of dosing sugar and end of mixing tea
           if(millis() - timer > totalTime) {
-              static unsigned long mixer_timer = millis();
-
               // Stop sugar dosing
               digitalWrite(sugar_dispenser_pin, LOW);
 
@@ -686,7 +684,7 @@ void teaProcess(){
                   screen.updateInfo();
                   digitalWrite(mixer_pin, LOW); // Stop mixer
               }
-          }
+          } else mixer_timer = millis();
       }
         
       break;
