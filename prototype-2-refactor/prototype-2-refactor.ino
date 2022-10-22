@@ -74,10 +74,12 @@ void setup()
     // Buttons and potentiometer
     r_button.setButtonLevel(HIGH);
     l_button.setButtonLevel(HIGH);
+    
     pinMode(potent_pin, INPUT);
 
     // Thermometer
 //    pinMode(termometer_pin, INPUT);
+//    ds.setResolution(9);
 
     // Kettle
     pinMode(kettle_relay_pin, OUTPUT);
@@ -506,14 +508,8 @@ void menuControl() {
  * Every second get new value of the temperature
  */
 void getTemperature(){
-    ds.requestTemp();
-//    if(ds.readTemp()) {
-//       Serial.println(ds.getTemp());
-//      current_temp = ds.getTemp();
-//    }
-  
     static unsigned long last_temp_request = 0;
-    if(millis() - last_temp_request > 1000) {
+    if(millis() - last_temp_request > 2000) {
         last_temp_request = millis();
         if(ds.readTemp()) {
             Serial.println(ds.getTemp());
